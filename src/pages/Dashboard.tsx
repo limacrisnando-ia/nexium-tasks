@@ -24,10 +24,21 @@ function prioridadeBadgeClass(prioridade: string) {
     }
 }
 
+const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
 export default function Dashboard() {
     const [metricas, setMetricas] = useState<DashboardMetricas | null>(null)
     const [tarefas, setTarefas] = useState<ProximaTarefa[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Filtros mês/ano
+    const now = new Date()
+    const [filterMes, setFilterMes] = useState(now.getMonth() + 1)
+    const [filterAno, setFilterAno] = useState(now.getFullYear())
+
+    // Valores filtrados por período
+    const [valorFaturadoPeriodo, setValorFaturadoPeriodo] = useState(0)
+    const [valorReceberPeriodo, setValorReceberPeriodo] = useState(0)
 
     useEffect(() => {
         async function load() {
@@ -43,12 +54,51 @@ export default function Dashboard() {
         load()
     }, [])
 
+    // Carregar valores filtrados por mês/ano
+    useEffect(() => {
+        async function loadPeriodo() {
+            const startDate = `${filterAno}-${String(filterMes).padStart(2, '0')}-01`
+            const endDate = filterMes === 12
+                ? `${filterAno + 1}-01-01`
+                : `${filterAno}-${String(filterMes + 1).padStart(2, '0')}-01`
+
+            // Buscar entrada paga no período
+            const { data: projetos } = await supabase
+                .from('projetos')
+                .select('valor_entrada, status_entrada, data_entrada, valor_entrega, status_entrega, data_entrega')
+
+            if (projetos) {
+                let faturado = 0
+                let receber = 0
+                projetos.forEach((p: any) => {
+                    // Entrada
+                    if (p.status_entrada === 'Pago' && p.data_entrada && p.data_entrada >= startDate && p.data_entrada < endDate) {
+                        faturado += (p.valor_entrada || 0)
+                    }
+                    if (p.status_entrada === 'Pendente') {
+                        receber += (p.valor_entrada || 0)
+                    }
+                    // Entrega
+                    if (p.status_entrega === 'Pago' && p.data_entrega && p.data_entrega >= startDate && p.data_entrega < endDate) {
+                        faturado += (p.valor_entrega || 0)
+                    }
+                    if (p.status_entrega === 'Pendente') {
+                        receber += (p.valor_entrega || 0)
+                    }
+                })
+                setValorFaturadoPeriodo(faturado)
+                setValorReceberPeriodo(receber)
+            }
+        }
+        loadPeriodo()
+    }, [filterMes, filterAno])
+
     if (loading) {
         return (
             <div className="page-container">
                 <div className="page-header"><h2>Dashboard</h2></div>
                 <div className="metrics-grid stagger-children">
-                    {[1, 2, 3, 4].map((i) => (
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
                         <div key={i} className="metric-card">
                             <div className="loading-skeleton" style={{ width: '60%', marginBottom: 12 }} />
                             <div className="loading-skeleton" style={{ width: '40%', height: 32 }} />
@@ -69,8 +119,45 @@ export default function Dashboard() {
                 <p>Visão geral do seu sistema</p>
             </div>
 
+            {/* Filtro Mês/Ano */}
+            <div className="filters-bar" style={{ marginBottom: 16 }}>
+                <select className="filter-select" value={filterMes} onChange={(e) => setFilterMes(Number(e.target.value))}>
+                    {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+                <select className="filter-select" value={filterAno} onChange={(e) => setFilterAno(Number(e.target.value))}>
+                    {[filterAno - 1, filterAno, filterAno + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+            </div>
+
             {/* Metric Cards */}
             <div className="metrics-grid stagger-children">
+                <div className="metric-card">
+                    <div className="label">Faturado no Mês</div>
+                    <div className="value" style={{ fontSize: '1.4rem' }}>
+                        {formatCurrency(valorFaturadoPeriodo)}
+                    </div>
+                    <div className="sub">{monthNames[filterMes - 1]} {filterAno}</div>
+                </div>
+                <div className="metric-card">
+                    <div className="label">Valor a Receber</div>
+                    <div className="value" style={{ fontSize: '1.4rem' }}>
+                        {formatCurrency(valorReceberPeriodo)}
+                    </div>
+                    <div className="sub">Total pendente</div>
+                </div>
+                <div className="metric-card">
+                    <div className="label">Faturado Total</div>
+                    <div className="value" style={{ fontSize: '1.4rem' }}>
+                        {formatCurrency(metricas?.valor_faturado ?? 0)}
+                    </div>
+                </div>
+                <div className="metric-card">
+                    <div className="label">Receita Recorrente</div>
+                    <div className="value" style={{ fontSize: '1.4rem' }}>
+                        {formatCurrency(metricas?.receita_recorrente ?? 0)}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginLeft: 4 }}>/mês</span>
+                    </div>
+                </div>
                 <div className="metric-card">
                     <div className="label">Clientes Ativos</div>
                     <div className="value">{metricas?.clientes_ativos ?? 0}</div>
@@ -83,21 +170,6 @@ export default function Dashboard() {
                             {metricas?.tarefas_atrasadas} atrasada(s)
                         </div>
                     )}
-                </div>
-                <div className="metric-card">
-                    <div className="label">Tarefas Hoje / 7 dias</div>
-                    <div className="value">
-                        {metricas?.tarefas_hoje ?? 0}
-                        <span style={{ fontSize: '1rem', color: 'var(--gray-500)', marginLeft: 8 }}>
-                            / {metricas?.tarefas_proximos_7_dias ?? 0}
-                        </span>
-                    </div>
-                </div>
-                <div className="metric-card">
-                    <div className="label">Valor a Receber</div>
-                    <div className="value" style={{ fontSize: '1.5rem' }}>
-                        {formatCurrency(metricas?.valor_total_receber ?? 0)}
-                    </div>
                 </div>
             </div>
 

@@ -13,11 +13,18 @@ export interface Projeto {
     id: string
     nome_projeto: string
     cliente_id: string | null
-    tipo: 'Pontual' | 'Recorrente'
+    tipo: 'Site' | 'Automação'
     descricao: string | null
-    valor: number | null
-    data_pagamento: string | null
-    status_pagamento: 'Pendente' | 'Pago'
+    valor_total: number | null
+    modelo_pagamento: 'Integral' | '50/50'
+    valor_entrada: number | null
+    status_entrada: 'Pendente' | 'Pago'
+    data_entrada: string | null
+    valor_entrega: number | null
+    status_entrega: 'Pendente' | 'Pago'
+    data_entrega: string | null
+    valor_manutencao: number | null
+    status_manutencao: 'Ativo' | 'Inativo'
     data_inicio: string | null
     data_conclusao: string | null
     created_at: string | null
@@ -44,7 +51,9 @@ export interface DashboardMetricas {
     tarefas_pendentes: number
     tarefas_proximos_7_dias: number
     tarefas_hoje: number
-    valor_total_receber: number
+    valor_a_receber: number
+    valor_faturado: number
+    receita_recorrente: number
     tarefas_atrasadas: number
 }
 
