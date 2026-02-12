@@ -13,7 +13,7 @@ interface TarefaComCliente extends Tarefa {
 
 export default function Calendario() {
     const [tarefas, setTarefas] = useState<TarefaComCliente[]>([])
-    const [clientes, setClientes] = useState<Cliente[]>([])
+    const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
     const [loading, setLoading] = useState(true)
     const [currentDate, setCurrentDate] = useState(new Date())
     const [filterCliente, setFilterCliente] = useState('Todos')
