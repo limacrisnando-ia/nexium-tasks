@@ -120,7 +120,7 @@ export default function ClienteDetalhe() {
         setSavingP(true)
 
         const vTotal = projetoForm.valor_total ? parseFloat(projetoForm.valor_total) : 0
-        const modelo = projetoForm.tipo === 'Site' ? '50/50' as const : projetoForm.modelo_pagamento
+        const modelo = projetoForm.modelo_pagamento
         const is5050 = modelo === '50/50'
 
         const payload = {
@@ -136,8 +136,8 @@ export default function ClienteDetalhe() {
             valor_entrega: is5050 ? Math.round(vTotal / 2 * 100) / 100 : 0,
             status_entrega: is5050 ? projetoForm.status_entrega : 'Pago',
             data_entrega: projetoForm.data_entrega || null,
-            valor_manutencao: projetoForm.tipo === 'Automação' && projetoForm.valor_manutencao ? parseFloat(projetoForm.valor_manutencao) : 0,
-            status_manutencao: projetoForm.tipo === 'Automação' ? projetoForm.status_manutencao : 'Inativo',
+            valor_manutencao: projetoForm.valor_manutencao ? parseFloat(projetoForm.valor_manutencao) : 0,
+            status_manutencao: projetoForm.valor_manutencao ? projetoForm.status_manutencao : 'Inativo',
             data_inicio: projetoForm.data_inicio || null,
             data_conclusao: projetoForm.data_conclusao || null,
             updated_at: new Date().toISOString(),
@@ -435,10 +435,7 @@ export default function ClienteDetalhe() {
                 <div className="form-row">
                     <div className="form-group">
                         <label>Tipo de Serviço</label>
-                        <select className="form-select" value={projetoForm.tipo} onChange={(e) => {
-                            const tipo = e.target.value as Projeto['tipo']
-                            setProjetoForm({ ...projetoForm, tipo, modelo_pagamento: tipo === 'Site' ? '50/50' : projetoForm.modelo_pagamento })
-                        }}>
+                        <select className="form-select" value={projetoForm.tipo} onChange={(e) => setProjetoForm({ ...projetoForm, tipo: e.target.value as Projeto['tipo'] })}>
                             {tipoOpts.map((t) => <option key={t} value={t}>{t}</option>)}
                         </select>
                     </div>
@@ -446,36 +443,34 @@ export default function ClienteDetalhe() {
                         <label>Valor Total (R$)</label>
                         <input className="form-input" type="number" step="0.01" value={projetoForm.valor_total} onChange={(e) => setProjetoForm({ ...projetoForm, valor_total: e.target.value })} placeholder="0,00" />
                     </div>
-                </div>
-
-                {/* Modelo de pagamento — só para Automação */}
-                {projetoForm.tipo === 'Automação' && (
                     <div className="form-group">
                         <label>Modelo de Pagamento</label>
                         <select className="form-select" value={projetoForm.modelo_pagamento} onChange={(e) => setProjetoForm({ ...projetoForm, modelo_pagamento: e.target.value as Projeto['modelo_pagamento'] })}>
                             {modeloPgtoOpts.map((m) => <option key={m} value={m}>{m}</option>)}
                         </select>
                     </div>
-                )}
+                </div>
 
                 <div className="form-group">
                     <label>Descrição</label>
                     <textarea className="form-textarea" value={projetoForm.descricao} onChange={(e) => setProjetoForm({ ...projetoForm, descricao: e.target.value })} placeholder="Descrição do projeto" />
                 </div>
 
-                {/* Entrada */}
+                {/* Pagamento do Serviço */}
                 <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>
-                        {(projetoForm.tipo === 'Site' || projetoForm.modelo_pagamento === '50/50') ? 'ENTRADA (50%)' : 'PAGAMENTO INTEGRAL'}
+                        {projetoForm.modelo_pagamento === '50/50' ? 'ENTRADA (50%)' : 'PAGAMENTO INTEGRAL'}
                     </div>
                     <div className="form-row">
                         <div className="form-group">
                             <label>Valor</label>
-                            <input className="form-input" type="text" disabled value={projetoForm.valor_total ? formatCurrency(
-                                (projetoForm.tipo === 'Site' || projetoForm.modelo_pagamento === '50/50')
-                                    ? parseFloat(projetoForm.valor_total) / 2
-                                    : parseFloat(projetoForm.valor_total)
-                            ) : 'R$ 0,00'} />
+                            <div className="form-input" style={{ background: 'var(--gray-100)', color: 'var(--gray-600)', cursor: 'default' }}>
+                                {projetoForm.valor_total ? formatCurrency(
+                                    projetoForm.modelo_pagamento === '50/50'
+                                        ? parseFloat(projetoForm.valor_total) / 2
+                                        : parseFloat(projetoForm.valor_total)
+                                ) : 'R$ 0,00'}
+                            </div>
                         </div>
                         <div className="form-group">
                             <label>Status</label>
@@ -491,13 +486,15 @@ export default function ClienteDetalhe() {
                 </div>
 
                 {/* Entrega — só se 50/50 */}
-                {(projetoForm.tipo === 'Site' || projetoForm.modelo_pagamento === '50/50') && (
+                {projetoForm.modelo_pagamento === '50/50' && (
                     <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
                         <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>ENTREGA (50%)</div>
                         <div className="form-row">
                             <div className="form-group">
                                 <label>Valor</label>
-                                <input className="form-input" type="text" disabled value={projetoForm.valor_total ? formatCurrency(parseFloat(projetoForm.valor_total) / 2) : 'R$ 0,00'} />
+                                <div className="form-input" style={{ background: 'var(--gray-100)', color: 'var(--gray-600)', cursor: 'default' }}>
+                                    {projetoForm.valor_total ? formatCurrency(parseFloat(projetoForm.valor_total) / 2) : 'R$ 0,00'}
+                                </div>
                             </div>
                             <div className="form-group">
                                 <label>Status</label>
@@ -513,25 +510,23 @@ export default function ClienteDetalhe() {
                     </div>
                 )}
 
-                {/* Manutenção — só para Automação */}
-                {projetoForm.tipo === 'Automação' && (
-                    <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>MANUTENÇÃO RECORRENTE</div>
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label>Valor Mensal (R$)</label>
-                                <input className="form-input" type="number" step="0.01" value={projetoForm.valor_manutencao} onChange={(e) => setProjetoForm({ ...projetoForm, valor_manutencao: e.target.value })} placeholder="0,00" />
-                            </div>
-                            <div className="form-group">
-                                <label>Status</label>
-                                <select className="form-select" value={projetoForm.status_manutencao} onChange={(e) => setProjetoForm({ ...projetoForm, status_manutencao: e.target.value as 'Ativo' | 'Inativo' })}>
-                                    <option value="Ativo">Ativo</option>
-                                    <option value="Inativo">Inativo</option>
-                                </select>
-                            </div>
+                {/* Manutenção / Suporte — sempre visível, opcional */}
+                <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>MANUTENÇÃO / SUPORTE (OPCIONAL)</div>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label>Valor Mensal (R$)</label>
+                            <input className="form-input" type="number" step="0.01" value={projetoForm.valor_manutencao} onChange={(e) => setProjetoForm({ ...projetoForm, valor_manutencao: e.target.value })} placeholder="0,00" />
+                        </div>
+                        <div className="form-group">
+                            <label>Status</label>
+                            <select className="form-select" value={projetoForm.status_manutencao} onChange={(e) => setProjetoForm({ ...projetoForm, status_manutencao: e.target.value as 'Ativo' | 'Inativo' })}>
+                                <option value="Ativo">Ativo</option>
+                                <option value="Inativo">Inativo</option>
+                            </select>
                         </div>
                     </div>
-                )}
+                </div>
 
                 <div className="form-row">
                     <div className="form-group">

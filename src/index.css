@@ -697,7 +697,7 @@ textarea {
   background: var(--white);
   border-radius: var(--radius-lg);
   width: 90%;
-  max-width: 560px;
+  max-width: 1280px;
   max-height: 85vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
