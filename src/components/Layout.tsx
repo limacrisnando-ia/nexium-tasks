@@ -1,8 +1,18 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useFoco, phaseLabel } from '../contexts/FocoContext'
+
+function pad(n: number) { return n.toString().padStart(2, '0') }
+function fmtTime(s: number) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}` }
 
 export default function Layout() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const location = useLocation()
+    const navigate = useNavigate()
+    const foco = useFoco()
+
+    const showWidget = foco.running && location.pathname !== '/tarefas'
+    const currentTask = foco.fila[foco.currentIndex]
 
     return (
         <div className="app-layout">
@@ -64,6 +74,7 @@ export default function Layout() {
                         </svg>
                         Calendário
                     </NavLink>
+
                 </nav>
                 <div className="sidebar-footer">
                     <div className="sidebar-footer-text">NEXIUM Tasks</div>
@@ -74,6 +85,23 @@ export default function Layout() {
             <main className="main-content">
                 <Outlet />
             </main>
+
+            {/* Floating timer widget */}
+            {showWidget && (
+                <div className="foco-widget" onClick={() => navigate('/tarefas')}>
+                    <div className="foco-widget-pulse" />
+                    <div className="foco-widget-timer">
+                        {fmtTime(foco.timeLeft)}
+                    </div>
+                    <div className="foco-widget-info">
+                        <div className="foco-widget-phase">{phaseLabel[foco.phase]}</div>
+                        {currentTask && (
+                            <div className="foco-widget-task">{currentTask.titulo}</div>
+                        )}
+                    </div>
+                    <div className="foco-widget-arrow">→</div>
+                </div>
+            )}
         </div>
     )
 }

@@ -4,11 +4,18 @@ import type { Tarefa, Cliente, Projeto } from '../lib/types'
 import Modal from '../components/Modal'
 import { showToast } from '../components/Toast'
 import { NexiumIcon } from '../components/NexiumIcon'
+import { useFoco, phaseLabel, phaseColor, type QueueTask } from '../contexts/FocoContext'
 
 function formatDate(d: string | null) {
     if (!d) return '—'
     return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
+function pad(n: number) { return n.toString().padStart(2, '0') }
+function fmtTime(s: number) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}` }
+
+const FOCUS_TIME = 25 * 60
+const SHORT_BREAK = 5 * 60
+const LONG_BREAK = 15 * 60
 
 const statusOpts = ['A Fazer', 'Em Andamento', 'Concluída'] as const
 const prioridadeOpts = ['Alta', 'Média', 'Baixa'] as const
@@ -26,6 +33,23 @@ export default function Tarefas() {
     const [editingId, setEditingId] = useState<string | null>(null)
     const [form, setForm] = useState(emptyForm)
     const [saving, setSaving] = useState(false)
+    const [focoMode, setFocoMode] = useState(false)
+    const [focoClienteId, setFocoClienteId] = useState('')
+
+    const foco = useFoco()
+    const {
+        phase, timeLeft, running, cycleCount,
+        fila, currentIndex,
+        startTimer, pauseTimer, resetTimer, skipPhase,
+        addToQueue, removeFromQueue, moveUp, moveDown,
+        completeCurrent, setSelectedCliente,
+    } = foco
+
+    const currentTask = fila[currentIndex]
+    const totalTime = phase === 'focus' ? FOCUS_TIME : phase === 'shortBreak' ? SHORT_BREAK : LONG_BREAK
+    const progress = 1 - timeLeft / totalTime
+    const circumference = 2 * Math.PI * 45
+    const strokeDashoffset = circumference * (1 - progress)
 
     async function loadData() {
         setLoading(true)
@@ -51,7 +75,11 @@ export default function Tarefas() {
     const filtered = tarefas.filter((t) => {
         if (filterStatus !== 'Todos' && t.status !== filterStatus) return false
         if (filterPrioridade !== 'Todos' && t.prioridade !== filterPrioridade) return false
-        if (filterCliente !== 'Todos' && t.cliente_id !== filterCliente) return false
+        if (focoMode && focoClienteId) {
+            if (t.cliente_id !== focoClienteId) return false
+        } else if (filterCliente !== 'Todos' && t.cliente_id !== filterCliente) {
+            return false
+        }
         return true
     })
 
@@ -111,9 +139,113 @@ export default function Tarefas() {
         loadData()
     }
 
+    async function updateStatus(id: string, status: string) {
+        await supabase.from('tarefas').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    }
+
+    async function syncQueueStatuses(queue: QueueTask[], activeIdx: number) {
+        // Position at activeIdx → "Em Andamento"; all others (non-concluded) → "A Fazer"
+        const updates: Promise<void>[] = []
+        for (let i = 0; i < queue.length; i++) {
+            if (queue[i].status === 'Concluída') continue
+            const target = i === activeIdx ? 'Em Andamento' : 'A Fazer'
+            if (queue[i].status !== target) {
+                updates.push(updateStatus(queue[i].id, target))
+            }
+        }
+        if (updates.length > 0) {
+            await Promise.all(updates)
+            loadData()
+        }
+    }
+
+    function activateFocoMode() {
+        if (!focoClienteId) {
+            showToast('Selecione um cliente para o modo foco')
+            return
+        }
+        const clientTasks = tarefas.filter(
+            t => t.cliente_id === focoClienteId && t.status !== 'Concluída'
+        )
+        if (clientTasks.length === 0) {
+            showToast('Nenhuma tarefa pendente para este cliente')
+            return
+        }
+        setSelectedCliente(focoClienteId)
+        fila.forEach(f => removeFromQueue(f.id))
+        clientTasks.forEach(t => {
+            addToQueue({ ...t, cliente_nome: t.cliente_nome, nome_projeto: t.nome_projeto })
+        })
+        syncQueueStatuses(clientTasks, 0)
+        setFocoMode(true)
+        const clientName = clientes.find(c => c.id === focoClienteId)?.nome || ''
+        showToast(`🎯 Modo Foco ativado — ${clientTasks.length} tarefa(s) de ${clientName}`)
+    }
+
+    async function deactivateFocoMode() {
+        pauseTimer()
+        // Revert the current active task (at currentIndex) back to "A Fazer"
+        const activeTask = fila[currentIndex]
+        if (activeTask && activeTask.status !== 'Concluída') {
+            await updateStatus(activeTask.id, 'A Fazer')
+        }
+        fila.forEach(f => removeFromQueue(f.id))
+        setFocoMode(false)
+        setFocoClienteId('')
+        loadData()
+    }
+
+    async function handleCompleteCurrent() {
+        const nextTask = fila[currentIndex + 1]
+        await completeCurrent()
+        if (nextTask && nextTask.status !== 'Concluída') {
+            await updateStatus(nextTask.id, 'Em Andamento')
+        }
+        loadData()
+    }
+
+    async function handleMoveUp(idx: number) {
+        if (idx === 0) return
+        moveUp(idx)
+        // After swap the queue has changed — sync based on currentIndex
+        // Build the new queue state manually (fila hasn't updated yet in this render)
+        const newQueue = [...fila];
+        [newQueue[idx - 1], newQueue[idx]] = [newQueue[idx], newQueue[idx - 1]]
+        await syncQueueStatuses(newQueue, currentIndex)
+    }
+
+    async function handleMoveDown(idx: number) {
+        if (idx === fila.length - 1) return
+        moveDown(idx)
+        const newQueue = [...fila];
+        [newQueue[idx], newQueue[idx + 1]] = [newQueue[idx + 1], newQueue[idx]]
+        await syncQueueStatuses(newQueue, currentIndex)
+    }
+
+    async function handleRemoveFromQueue(id: string) {
+        const taskIdx = fila.findIndex(f => f.id === id)
+        const task = fila[taskIdx]
+        removeFromQueue(id)
+        // Revert removed task if it was active
+        if (task && task.status === 'Em Andamento') {
+            await updateStatus(id, 'A Fazer')
+        }
+        // If removed task was at currentIndex, new task at that index needs "Em Andamento"
+        if (taskIdx === currentIndex) {
+            const remaining = fila.filter(f => f.id !== id)
+            const newIdx = Math.min(currentIndex, remaining.length - 1)
+            if (newIdx >= 0 && remaining[newIdx] && remaining[newIdx].status !== 'Concluída') {
+                await updateStatus(remaining[newIdx].id, 'Em Andamento')
+            }
+        }
+        loadData()
+    }
+
     const filteredProjetos = form.cliente_id
         ? projetos.filter((p) => p.cliente_id === form.cliente_id)
         : projetos
+
+    const filaIds = new Set(fila.map(f => f.id))
 
     return (
         <div className="page-container">
@@ -144,15 +276,121 @@ export default function Tarefas() {
                 </button>
             </div>
 
-            <div className="section-card animate-fade-in">
-                <div className="section-card-body">
-                    {loading ? (
-                        <div style={{ padding: 24 }}>
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <div key={i} className="loading-skeleton" style={{ height: 48, marginBottom: 8 }} />
+            {/* ─── Modo Foco Section ─── */}
+            {!focoMode && fila.length === 0 ? (
+                <div className="foco-section animate-fade-in">
+                    <div className="foco-section-inner">
+                        <div className="foco-section-left">
+                            <span className="foco-section-icon">⏱</span>
+                            <div>
+                                <div className="foco-section-title">Modo Foco</div>
+                                <div className="foco-section-desc">Selecione um cliente para iniciar o timer com todas as tarefas pendentes</div>
+                            </div>
+                        </div>
+                        <div className="foco-section-right">
+                            <select
+                                className="filter-select"
+                                value={focoClienteId}
+                                onChange={(e) => setFocoClienteId(e.target.value)}
+                            >
+                                <option value="">Selecionar cliente...</option>
+                                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                            </select>
+                            <button className="btn btn-primary" onClick={activateFocoMode}>
+                                Ativar Modo Foco
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* ─── Inline Timer Bar (active) ─── */
+                <div className="timer-bar animate-fade-in">
+                    <div className="timer-bar-main">
+                        {/* Mini circle */}
+                        <div className="timer-bar-circle">
+                            <svg viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="var(--gray-200)" strokeWidth="6" />
+                                <circle
+                                    cx="50" cy="50" r="45"
+                                    fill="none"
+                                    stroke={phaseColor[phase]}
+                                    strokeWidth="6"
+                                    strokeLinecap="round"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={strokeDashoffset}
+                                    transform="rotate(-90 50 50)"
+                                    style={{ transition: 'stroke-dashoffset 0.3s linear' }}
+                                />
+                            </svg>
+                            <span className="timer-bar-time" style={{ color: phaseColor[phase] }}>{fmtTime(timeLeft)}</span>
+                        </div>
+
+                        {/* Info */}
+                        <div className="timer-bar-info">
+                            <div className="timer-bar-phase" style={{ color: phaseColor[phase] }}>{phaseLabel[phase]}</div>
+                            {currentTask && (
+                                <div className="timer-bar-task">
+                                    {currentTask.titulo}
+                                    {currentTask.cliente_nome && <span className="timer-bar-task-client"> · {currentTask.cliente_nome}</span>}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Controls */}
+                        <div className="timer-bar-controls">
+                            {!running ? (
+                                <button className="timer-bar-btn timer-bar-btn-primary" onClick={startTimer} title="Iniciar">▶</button>
+                            ) : (
+                                <button className="timer-bar-btn" onClick={pauseTimer} title="Pausar">⏸</button>
+                            )}
+                            <button className="timer-bar-btn" onClick={skipPhase} title="Pular fase">⏭</button>
+                            <button className="timer-bar-btn" onClick={resetTimer} title="Resetar">↺</button>
+                            {currentTask && (
+                                <button className="timer-bar-btn timer-bar-btn-success" onClick={handleCompleteCurrent} title="Concluir tarefa atual">✓</button>
+                            )}
+                        </div>
+
+                        <div className="timer-bar-cycle">Ciclo {cycleCount + 1}</div>
+
+                        {/* Queue count */}
+                        <div className="timer-bar-queue-info">
+                            {currentIndex + 1}/{fila.length} tarefas
+                        </div>
+
+                        <button className="timer-bar-btn timer-bar-btn-exit" onClick={deactivateFocoMode} title="Encerrar modo foco">✕</button>
+                    </div>
+
+                    {/* Queue list */}
+                    {fila.length > 1 && (
+                        <div className="timer-bar-queue">
+                            {fila.map((t, idx) => (
+                                <div key={t.id} className={`timer-bar-queue-item ${idx === currentIndex ? 'active' : ''}`}>
+                                    <span className="timer-bar-queue-num">{idx + 1}</span>
+                                    <span className="timer-bar-queue-title">{t.titulo}</span>
+                                    <div className="timer-bar-queue-actions">
+                                        <button onClick={() => handleMoveUp(idx)} disabled={idx === 0}>↑</button>
+                                        <button onClick={() => handleMoveDown(idx)} disabled={idx === fila.length - 1}>↓</button>
+                                        <button onClick={() => handleRemoveFromQueue(t.id)} className="timer-bar-queue-remove">×</button>
+                                    </div>
+                                </div>
                             ))}
                         </div>
-                    ) : filtered.length === 0 ? (
+                    )}
+                </div>
+            )}
+
+            {/* ─── Kanban Board ─── */}
+            {loading ? (
+                <div className="section-card animate-fade-in">
+                    <div className="section-card-body" style={{ padding: 24 }}>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="loading-skeleton" style={{ height: 48, marginBottom: 8 }} />
+                        ))}
+                    </div>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="section-card animate-fade-in">
+                    <div className="section-card-body">
                         <div className="empty-state">
                             <div className="empty-state-brand">
                                 <NexiumIcon size={60} color="#000" />
@@ -160,57 +398,75 @@ export default function Tarefas() {
                             <p>Nenhuma tarefa encontrada</p>
                             <button className="btn btn-secondary" onClick={openCreate}>Criar primeira tarefa</button>
                         </div>
-                    ) : (
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Tarefa</th>
-                                    <th>Cliente</th>
-                                    <th>Prazo</th>
-                                    <th>Status</th>
-                                    <th>Prioridade</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody className="stagger-children">
-                                {filtered.map((t) => {
-                                    const atrasada = t.prazo && t.status !== 'Concluída' && new Date(t.prazo + 'T00:00:00') < new Date(new Date().toDateString())
-                                    return (
-                                        <tr key={t.id} className={`${t.prioridade === 'Alta' ? 'priority-alta' : ''} ${atrasada ? 'tarefa-atrasada' : ''}`}>
-                                            <td>
-                                                <strong>{t.titulo}</strong>
-                                                {t.nome_projeto && (
-                                                    <div style={{ fontSize: '0.75rem', color: atrasada ? 'var(--gray-400)' : 'var(--gray-500)', marginTop: 2 }}>
-                                                        {t.nome_projeto}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td>{t.cliente_nome || '—'}</td>
-                                            <td>{formatDate(t.prazo)}</td>
-                                            <td>
-                                                <span className={`badge ${t.status === 'Concluída' ? 'badge-black' : t.status === 'Em Andamento' ? 'badge-dark' : 'badge-light'}`}>
-                                                    {t.status}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`badge badge-priority-${t.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}>
-                                                    {t.prioridade}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', gap: 4 }}>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => openEdit(t)}>Editar</button>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(t.id)}>Excluir</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    )}
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="kanban-board animate-fade-in">
+                    {statusOpts.map((status) => {
+                        const columnTasks = filtered.filter(t => t.status === status)
+                        const statusIcon = status === 'A Fazer' ? '⏳' : status === 'Em Andamento' ? '🔄' : '✅'
+                        const statusClass = status === 'A Fazer' ? 'afazer' : status === 'Em Andamento' ? 'andamento' : 'concluida'
+                        return (
+                            <div key={status} className={`kanban-column kanban-${statusClass}`}>
+                                <div className="kanban-column-header">
+                                    <span className="kanban-column-icon">{statusIcon}</span>
+                                    <span className="kanban-column-title">{status}</span>
+                                    <span className="kanban-column-count">{columnTasks.length}</span>
+                                </div>
+                                <div className="kanban-column-body">
+                                    {columnTasks.length === 0 ? (
+                                        <div className="kanban-empty">Nenhuma tarefa</div>
+                                    ) : (
+                                        columnTasks.map((t) => {
+                                            const atrasada = t.prazo && t.status !== 'Concluída' && new Date(t.prazo + 'T00:00:00') < new Date(new Date().toDateString())
+                                            const inQueue = filaIds.has(t.id)
+                                            return (
+                                                <div key={t.id} className={`kanban-card ${atrasada ? 'kanban-card-late' : ''} ${inQueue ? 'kanban-card-queued' : ''}`}>
+                                                    <div className="kanban-card-header">
+                                                        <span className="kanban-card-title">{t.titulo}</span>
+                                                        <span className={`kanban-card-priority kanban-priority-${t.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}>
+                                                            {t.prioridade}
+                                                        </span>
+                                                    </div>
+                                                    {t.nome_projeto && (
+                                                        <div className="kanban-card-project">{t.nome_projeto}</div>
+                                                    )}
+                                                    <div className="kanban-card-meta">
+                                                        {t.cliente_nome && <span>👤 {t.cliente_nome}</span>}
+                                                        {t.prazo && <span className={atrasada ? 'kanban-card-late-text' : ''}>📅 {formatDate(t.prazo)}</span>}
+                                                    </div>
+                                                    <div className="kanban-card-actions">
+                                                        {status !== 'Concluída' && (
+                                                            <button
+                                                                className="kanban-card-action-btn kanban-advance-btn"
+                                                                onClick={async () => {
+                                                                    const nextStatus = status === 'A Fazer' ? 'Em Andamento' : 'Concluída'
+                                                                    await supabase.from('tarefas').update({
+                                                                        status: nextStatus,
+                                                                        updated_at: new Date().toISOString(),
+                                                                        ...(nextStatus === 'Concluída' ? { data_conclusao: new Date().toISOString().split('T')[0] } : {}),
+                                                                    }).eq('id', t.id)
+                                                                    showToast(`Tarefa movida para "${nextStatus}"`)
+                                                                    loadData()
+                                                                }}
+                                                                title={status === 'A Fazer' ? 'Mover para Em Andamento' : 'Concluir'}
+                                                            >
+                                                                {status === 'A Fazer' ? '→ Iniciar' : '✓ Concluir'}
+                                                            </button>
+                                                        )}
+                                                        <button className="kanban-card-action-btn" onClick={() => openEdit(t)}>✏️</button>
+                                                        <button className="kanban-card-action-btn kanban-delete-btn" onClick={() => handleDelete(t.id)}>🗑</button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
 
             {/* Modal */}
             <Modal

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import type { Cliente, Projeto, Tarefa } from '../lib/types'
 import Modal from '../components/Modal'
 import { showToast } from '../components/Toast'
+import { StatusProgressBar } from '../components/StatusProgressBar'
 
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -375,6 +376,15 @@ export default function ClienteDetalhe() {
                     </button>
                 </div>
                 <div className="section-card-body">
+                    {tarefas.length > 0 && (
+                        <div style={{ padding: '16px 16px 0' }}>
+                            <StatusProgressBar
+                                aFazer={tarefas.filter(t => t.status === 'A Fazer').length}
+                                emAndamento={tarefas.filter(t => t.status === 'Em Andamento').length}
+                                concluidas={tarefas.filter(t => t.status === 'Concluída').length}
+                            />
+                        </div>
+                    )}
                     {tarefas.length === 0 ? (
                         <div className="empty-state">
                             <p>Nenhuma tarefa vinculada</p>
