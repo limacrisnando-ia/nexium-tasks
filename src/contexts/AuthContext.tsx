@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User, Session } from '@supabase/supabase-js'
 
@@ -37,63 +37,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [usuario, setUsuario] = useState<Usuario | null>(null)
     const [loading, setLoading] = useState(true)
-    const initialized = useRef(false)
 
-    async function fetchUsuario(retries = 2): Promise<Usuario | null> {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const { data, error } = await supabase.rpc('get_my_usuario')
-                if (error) break
-                if (data && data.length > 0) return data[0]
-                // Wait before retry
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 800))
-            } catch {
-                break
+    // Fetch usuario from DB — SECURITY DEFINER function bypasses RLS
+    async function fetchUsuario(): Promise<Usuario | null> {
+        try {
+            const { data, error } = await supabase.rpc('get_my_usuario')
+            if (error) {
+                console.warn('[Auth] fetchUsuario error:', error.message)
+                return null
             }
+            if (data && data.length > 0) return data[0]
+            // Retry once after 1s (trigger might still be creating the record)
+            await new Promise(r => setTimeout(r, 1000))
+            const retry = await supabase.rpc('get_my_usuario')
+            if (retry.data && retry.data.length > 0) return retry.data[0]
+        } catch (err) {
+            console.warn('[Auth] fetchUsuario exception:', err)
         }
         return null
     }
 
     useEffect(() => {
-        // Step 1: Get initial session and usuario
-        async function init() {
-            try {
-                const { data: { session: s } } = await supabase.auth.getSession()
-                setSession(s)
-                setUser(s?.user ?? null)
+        let mounted = true
 
-                if (s?.user) {
-                    const u = await fetchUsuario()
-                    if (u) setUsuario(u)
-                }
-            } catch (err) {
-                console.warn('Auth init error:', err)
-            } finally {
-                initialized.current = true
-                setLoading(false)
-            }
-        }
-        init()
-
-        // Step 2: Listen for auth changes (login, logout, token refresh)
+        // Single source of truth: onAuthStateChange handles ALL auth events
+        // including INITIAL_SESSION (fires on page load with stored session)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, s) => {
-                // Skip the initial session event since init() handles it
-                if (event === 'INITIAL_SESSION') return
+            (event, s) => {
+                if (!mounted) return
 
+                console.log('[Auth] Event:', event, 'Session:', !!s)
+
+                // Synchronously update session and user state
                 setSession(s)
                 setUser(s?.user ?? null)
 
                 if (s?.user) {
-                    const u = await fetchUsuario()
-                    if (u) setUsuario(u)
+                    // Fetch usuario asynchronously — DON'T await in the callback
+                    // (Supabase warns against async work in onAuthStateChange)
+                    fetchUsuario().then(u => {
+                        if (mounted) {
+                            setUsuario(u)
+                            setLoading(false)
+                        }
+                    })
                 } else {
                     setUsuario(null)
+                    setLoading(false)
                 }
             }
         )
 
-        return () => subscription.unsubscribe()
+        // Safety: if onAuthStateChange never fires within 5s, stop loading
+        const timeout = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn('[Auth] Timeout — forcing loading=false')
+                setLoading(false)
+            }
+        }, 5000)
+
+        return () => {
+            mounted = false
+            clearTimeout(timeout)
+            subscription.unsubscribe()
+        }
     }, [])
 
     async function signInWithGoogle() {
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     async function refreshUsuario() {
-        const u = await fetchUsuario(1)
+        const u = await fetchUsuario()
         if (u) setUsuario(u)
     }
 
