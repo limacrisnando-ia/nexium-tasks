@@ -44,20 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!email) return
 
         for (let i = 0; i < retries; i++) {
-            const { data } = await supabase
-                .from('usuarios')
-                .select('*')
-                .eq('email', email)
-                .maybeSingle()
+            // Use RPC (SECURITY DEFINER) - always works regardless of RLS timing
+            const { data } = await supabase.rpc('get_my_usuario')
 
-            if (data) {
-                setUsuario(data)
+            if (data && data.length > 0) {
+                setUsuario(data[0])
                 return
             }
 
             // Wait before retry (trigger may still be executing)
             if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, 800))
+                await new Promise(r => setTimeout(r, 1000))
             }
         }
     }
