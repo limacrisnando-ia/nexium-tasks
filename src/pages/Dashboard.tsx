@@ -43,13 +43,18 @@ export default function Dashboard() {
     useEffect(() => {
         async function load() {
             setLoading(true)
-            const [metricasRes, tarefasRes] = await Promise.all([
-                supabase.from('vw_dashboard_metricas').select('*').single(),
-                supabase.from('vw_proximas_tarefas').select('*').limit(10),
-            ])
-            if (metricasRes.data) setMetricas(metricasRes.data)
-            if (tarefasRes.data) setTarefas(tarefasRes.data)
-            setLoading(false)
+            try {
+                const [metricasRes, tarefasRes] = await Promise.all([
+                    supabase.from('vw_dashboard_metricas').select('*').maybeSingle(),
+                    supabase.from('vw_proximas_tarefas').select('*').limit(10),
+                ])
+                if (metricasRes.data) setMetricas(metricasRes.data)
+                if (tarefasRes.data) setTarefas(tarefasRes.data)
+            } catch (err) {
+                console.warn('Dashboard load error:', err)
+            } finally {
+                setLoading(false)
+            }
         }
         load()
     }, [])

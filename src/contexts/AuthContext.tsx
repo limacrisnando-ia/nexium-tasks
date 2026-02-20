@@ -37,70 +37,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [usuario, setUsuario] = useState<Usuario | null>(null)
     const [loading, setLoading] = useState(true)
-    const fetchingRef = useRef(false)
+    const initialized = useRef(false)
 
-    async function fetchUsuario(retries = 3): Promise<void> {
-        // Prevent concurrent fetches
-        if (fetchingRef.current) return
-        fetchingRef.current = true
-
-        try {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const { data, error } = await supabase.rpc('get_my_usuario')
-                    if (error) {
-                        console.warn('fetchUsuario error:', error.message)
-                        break
-                    }
-                    if (data && data.length > 0) {
-                        setUsuario(data[0])
-                        return
-                    }
-                    // Wait before retry (trigger may still be creating the record)
-                    if (i < retries - 1) {
-                        await new Promise(r => setTimeout(r, 1000))
-                    }
-                } catch (err) {
-                    console.warn('fetchUsuario exception:', err)
-                    break
-                }
+    async function fetchUsuario(retries = 2): Promise<Usuario | null> {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const { data, error } = await supabase.rpc('get_my_usuario')
+                if (error) break
+                if (data && data.length > 0) return data[0]
+                // Wait before retry
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 800))
+            } catch {
+                break
             }
-        } finally {
-            fetchingRef.current = false
         }
+        return null
     }
 
     useEffect(() => {
-        let mounted = true
+        // Step 1: Get initial session and usuario
+        async function init() {
+            try {
+                const { data: { session: s } } = await supabase.auth.getSession()
+                setSession(s)
+                setUser(s?.user ?? null)
 
-        // Use onAuthStateChange as the single source of truth
+                if (s?.user) {
+                    const u = await fetchUsuario()
+                    if (u) setUsuario(u)
+                }
+            } catch (err) {
+                console.warn('Auth init error:', err)
+            } finally {
+                initialized.current = true
+                setLoading(false)
+            }
+        }
+        init()
+
+        // Step 2: Listen for auth changes (login, logout, token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, s) => {
-                if (!mounted) return
+            async (event, s) => {
+                // Skip the initial session event since init() handles it
+                if (event === 'INITIAL_SESSION') return
 
                 setSession(s)
                 setUser(s?.user ?? null)
 
                 if (s?.user) {
-                    await fetchUsuario()
+                    const u = await fetchUsuario()
+                    if (u) setUsuario(u)
                 } else {
                     setUsuario(null)
                 }
-
-                if (mounted) setLoading(false)
             }
         )
 
-        // Safety timeout: if nothing fires within 4s, stop loading
-        const timeout = setTimeout(() => {
-            if (mounted) setLoading(false)
-        }, 4000)
-
-        return () => {
-            mounted = false
-            clearTimeout(timeout)
-            subscription.unsubscribe()
-        }
+        return () => subscription.unsubscribe()
     }, [])
 
     async function signInWithGoogle() {
@@ -132,8 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     async function refreshUsuario() {
-        fetchingRef.current = false
-        await fetchUsuario(1)
+        const u = await fetchUsuario(1)
+        if (u) setUsuario(u)
     }
 
     const isSuperAdmin = usuario?.role === 'SUPERADMIN'
