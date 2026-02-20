@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminUsuarios from './pages/AdminUsuarios'
 import AdminRelatorios from './pages/AdminRelatorios'
+import MeuPerfil from './pages/MeuPerfil'
 
 import { FocoProvider } from './contexts/FocoContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/clientes/:id" element={<ClienteDetalhe />} />
               <Route path="/tarefas" element={<Tarefas />} />
               <Route path="/calendario" element={<Calendario />} />
+              <Route path="/perfil" element={<MeuPerfil />} />
               {/* Admin routes */}
               <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
               <Route path="/admin/usuarios" element={<AdminGuard><AdminUsuarios /></AdminGuard>} />

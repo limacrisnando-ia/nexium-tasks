@@ -2304,7 +2304,9 @@ textarea {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== ADMIN BADGE ===== */
@@ -2428,4 +2430,37 @@ textarea {
 .badge-status-concluida {
   background: #e8f5e9;
   color: #2e7d32;
+}
+
+/* ===== DANGER BUTTON ===== */
+.btn-danger {
+  background: #c62828;
+  color: var(--white);
+  border: 1px solid #b71c1c;
+}
+
+.btn-danger:hover {
+  background: #b71c1c;
+}
+
+/* ===== PROFILE PAGE ===== */
+.perfil-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.sidebar-user-info {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.sidebar-user-info:hover .sidebar-user-name {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .perfil-info-grid {
+    grid-template-columns: 1fr;
+  }
 }

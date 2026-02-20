@@ -21,6 +21,7 @@ interface AuthContextType {
     signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
     signUpWithEmail: (email: string, password: string, nome: string) => Promise<{ error: string | null }>
     signOut: () => Promise<void>
+    refreshUsuario: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -37,37 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [usuario, setUsuario] = useState<Usuario | null>(null)
     const [loading, setLoading] = useState(true)
 
-    // Fetch or auto-create the record in `usuarios` table
-    async function fetchOrCreateUsuario(authUser: User) {
+    // Fetch usuario record with retry (DB trigger creates it, may take a moment)
+    async function fetchUsuario(authUser: User, retries = 3): Promise<void> {
         const email = authUser.email
         if (!email) return
 
-        // Try to find existing usuario
-        const { data, error } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle()
-
-        if (data) {
-            setUsuario(data)
-            return
-        }
-
-        // If no record exists, auto-create (first login)
-        if (!data && !error) {
-            const nome = authUser.user_metadata?.full_name
-                || authUser.user_metadata?.name
-                || email.split('@')[0]
-
-            const { data: newUser, error: insertErr } = await supabase
+        for (let i = 0; i < retries; i++) {
+            const { data } = await supabase
                 .from('usuarios')
-                .insert({ email, nome, role: 'USER', ativo: true })
-                .select()
-                .single()
+                .select('*')
+                .eq('email', email)
+                .maybeSingle()
 
-            if (!insertErr && newUser) {
-                setUsuario(newUser)
+            if (data) {
+                setUsuario(data)
+                return
+            }
+
+            // Wait before retry (trigger may still be executing)
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, 800))
             }
         }
     }
@@ -78,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(s)
             setUser(s?.user ?? null)
             if (s?.user) {
-                fetchOrCreateUsuario(s.user).finally(() => setLoading(false))
+                fetchUsuario(s.user).finally(() => setLoading(false))
             } else {
                 setLoading(false)
             }
@@ -90,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setSession(s)
                 setUser(s?.user ?? null)
                 if (s?.user) {
-                    await fetchOrCreateUsuario(s.user)
+                    await fetchUsuario(s.user)
                 } else {
                     setUsuario(null)
                 }
@@ -129,12 +119,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUsuario(null)
     }
 
+    async function refreshUsuario() {
+        if (user) await fetchUsuario(user, 1)
+    }
+
     const isSuperAdmin = usuario?.role === 'SUPERADMIN'
 
     return (
         <AuthContext.Provider value={{
             user, usuario, session, loading, isSuperAdmin,
-            signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
+            signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, refreshUsuario,
         }}>
             {children}
         </AuthContext.Provider>

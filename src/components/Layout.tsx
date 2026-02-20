@@ -105,13 +105,13 @@ export default function Layout() {
                     )}
                 </nav>
                 <div className="sidebar-footer">
-                    <div className="sidebar-user-info">
+                    <NavLink to="/perfil" className="sidebar-user-info" onClick={() => setSidebarOpen(false)} title="Meu Perfil">
                         <div className="sidebar-user-name">
                             {usuario?.nome || 'Usuário'}
                             {isSuperAdmin && <span className="admin-badge">ADMIN</span>}
                         </div>
                         <div className="sidebar-user-email">{usuario?.email}</div>
-                    </div>
+                    </NavLink>
                     <button className="sidebar-logout-btn" onClick={signOut} title="Sair">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
