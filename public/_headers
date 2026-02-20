@@ -1,25 +1,9 @@
-/*
-  Cloudflare Pages caching headers
-  Assets with hashed filenames get long-term caching.
-  HTML/root gets no-cache to always fetch latest.
-*/
-
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-
-/
-  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
-
-/*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
