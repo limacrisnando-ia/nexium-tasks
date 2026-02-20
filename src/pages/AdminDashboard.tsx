@@ -39,21 +39,21 @@ export default function AdminDashboard() {
     useEffect(() => {
         async function load() {
             setLoading(true)
-            const [usersRes, metricasRes] = await Promise.all([
+            const [usersRes, metricsRes] = await Promise.all([
                 supabase.from('vw_relatorio_usuarios').select('*'),
-                supabase.from('vw_dashboard_metricas').select('*').single(),
+                supabase.rpc('admin_get_global_metrics'),
             ])
             if (usersRes.data) setUsers(usersRes.data)
-            if (metricasRes.data) {
-                const m = metricasRes.data
+            if (metricsRes.data && metricsRes.data.length > 0) {
+                const m = metricsRes.data[0]
                 setMetrics({
-                    total_usuarios: usersRes.data?.length ?? 0,
-                    total_clientes: 0, // Will be calculated
-                    total_tarefas: 0,
-                    tarefas_pendentes: m.tarefas_pendentes,
-                    valor_faturado: m.valor_faturado,
-                    valor_a_receber: m.valor_a_receber,
-                    tarefas_atrasadas: m.tarefas_atrasadas,
+                    total_usuarios: Number(m.total_usuarios),
+                    total_clientes: Number(m.total_clientes),
+                    total_tarefas: Number(m.total_tarefas),
+                    tarefas_pendentes: Number(m.tarefas_pendentes),
+                    valor_faturado: Number(m.valor_faturado),
+                    valor_a_receber: Number(m.valor_a_receber),
+                    tarefas_atrasadas: Number(m.tarefas_atrasadas),
                 })
             }
             setLoading(false)
@@ -61,9 +61,6 @@ export default function AdminDashboard() {
         load()
     }, [])
 
-    // Calculate totals from users
-    const totalClientes = users.reduce((s, u) => s + u.total_clientes, 0)
-    const totalTarefas = users.reduce((s, u) => s + u.total_tarefas, 0)
     const totalConcluidas = users.reduce((s, u) => s + u.tarefas_concluidas, 0)
 
     if (loading) {
@@ -97,11 +94,11 @@ export default function AdminDashboard() {
             <div className="metrics-grid stagger-children">
                 <div className="metric-card">
                     <div className="label">Usuários Ativos</div>
-                    <div className="value">{users.filter(u => u.ativo).length}</div>
+                    <div className="value">{metrics?.total_usuarios ?? 0}</div>
                 </div>
                 <div className="metric-card">
                     <div className="label">Total de Clientes</div>
-                    <div className="value">{totalClientes}</div>
+                    <div className="value">{metrics?.total_clientes ?? 0}</div>
                 </div>
                 <div className="metric-card">
                     <div className="label">Tarefas Pendentes</div>
@@ -114,7 +111,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="metric-card">
                     <div className="label">Total de Tarefas</div>
-                    <div className="value">{totalTarefas}</div>
+                    <div className="value">{metrics?.total_tarefas ?? 0}</div>
                     <div className="sub">{totalConcluidas} concluída(s)</div>
                 </div>
                 <div className="metric-card">

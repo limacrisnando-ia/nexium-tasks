@@ -28,8 +28,8 @@ export default function AdminRelatorios() {
             setLoading(true)
             const [uRes, cRes, tRes] = await Promise.all([
                 supabase.from('vw_relatorio_usuarios').select('*'),
-                supabase.from('clientes').select('*, usuarios(nome)').order('nome'),
-                supabase.from('tarefas').select('*, clientes(nome), usuarios(nome)').order('prazo'),
+                supabase.rpc('admin_get_all_clientes'),
+                supabase.rpc('admin_get_all_tarefas'),
             ])
             if (uRes.data) setUsers(uRes.data)
             if (cRes.data) setClientes(cRes.data)
@@ -142,7 +142,7 @@ export default function AdminRelatorios() {
                                                 <span className={`badge badge-status-${c.status?.toLowerCase()}`}>{c.status}</span>
                                             </td>
                                             <td style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>
-                                                {c.usuarios?.nome || '—'}
+                                                {c.usuario_nome || '—'}
                                             </td>
                                         </tr>
                                     ))}
@@ -166,7 +166,7 @@ export default function AdminRelatorios() {
                                     {tarefas.map((t: any) => (
                                         <tr key={t.id}>
                                             <td><strong>{t.titulo}</strong></td>
-                                            <td>{t.clientes?.nome || '—'}</td>
+                                            <td>{t.cliente_nome || '—'}</td>
                                             <td>
                                                 <span className={`badge badge-status-${t.status === 'A Fazer' ? 'afazer' : t.status === 'Em Andamento' ? 'andamento' : 'concluida'}`}>
                                                     {t.status}
@@ -179,7 +179,7 @@ export default function AdminRelatorios() {
                                             </td>
                                             <td>{formatDate(t.prazo)}</td>
                                             <td style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>
-                                                {t.usuarios?.nome || '—'}
+                                                {t.usuario_nome || '—'}
                                             </td>
                                         </tr>
                                     ))}
