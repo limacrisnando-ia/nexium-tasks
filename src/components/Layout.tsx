@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useFoco, phaseLabel } from '../contexts/FocoContext'
+import { useAuth } from '../contexts/AuthContext'
 
 function pad(n: number) { return n.toString().padStart(2, '0') }
 function fmtTime(s: number) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}` }
@@ -10,6 +11,7 @@ export default function Layout() {
     const location = useLocation()
     const navigate = useNavigate()
     const foco = useFoco()
+    const { usuario, isSuperAdmin, signOut } = useAuth()
 
     const showWidget = foco.running && location.pathname !== '/tarefas'
     const currentTask = foco.fila[foco.currentIndex]
@@ -75,9 +77,46 @@ export default function Layout() {
                         Calendário
                     </NavLink>
 
+                    {/* Admin Section */}
+                    {isSuperAdmin && (
+                        <>
+                            <div className="sidebar-admin-divider">
+                                <span>ADMIN</span>
+                            </div>
+                            <NavLink to="/admin/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Dashboard Global
+                            </NavLink>
+                            <NavLink to="/admin/usuarios" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                Usuários
+                            </NavLink>
+                            <NavLink to="/admin/relatorios" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Relatórios
+                            </NavLink>
+                        </>
+                    )}
                 </nav>
                 <div className="sidebar-footer">
-                    <div className="sidebar-footer-text">NEXIUM Tasks</div>
+                    <div className="sidebar-user-info">
+                        <div className="sidebar-user-name">
+                            {usuario?.nome || 'Usuário'}
+                            {isSuperAdmin && <span className="admin-badge">ADMIN</span>}
+                        </div>
+                        <div className="sidebar-user-email">{usuario?.email}</div>
+                    </div>
+                    <button className="sidebar-logout-btn" onClick={signOut} title="Sair">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
                 </div>
             </aside>
 
