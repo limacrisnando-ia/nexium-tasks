@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { showToast } from '../components/Toast'
+import { LOCALES, LOCALE_LABELS, type Locale } from '../lib/i18n'
 
 export default function MeuPerfil() {
     const { usuario, user, refreshUsuario, isSuperAdmin, signOut } = useAuth()
+    const { locale, setLocale, t } = useLanguage()
     const [nome, setNome] = useState(usuario?.nome ?? '')
     const [saving, setSaving] = useState(false)
     const [changingPwd, setChangingPwd] = useState(false)
@@ -12,32 +15,32 @@ export default function MeuPerfil() {
     const [savingPwd, setSavingPwd] = useState(false)
 
     async function handleSaveNome() {
-        if (!nome.trim()) { showToast('Nome é obrigatório'); return }
+        if (!nome.trim()) { showToast(t('profile.name') + ' é obrigatório'); return }
         setSaving(true)
         const { error } = await supabase
             .from('usuarios')
             .update({ nome: nome.trim(), updated_at: new Date().toISOString() })
             .eq('id', usuario?.id)
         if (error) {
-            showToast('Erro ao salvar: ' + error.message)
+            showToast('Erro: ' + error.message)
         } else {
-            showToast('Nome atualizado com sucesso!')
+            showToast(t('profile.name') + ' ✓')
             await refreshUsuario()
         }
         setSaving(false)
     }
 
     async function handleChangePassword() {
-        if (!pwdForm.nova.trim()) { showToast('Informe a nova senha'); return }
-        if (pwdForm.nova.length < 6) { showToast('Senha deve ter no mínimo 6 caracteres'); return }
-        if (pwdForm.nova !== pwdForm.confirma) { showToast('As senhas não coincidem'); return }
+        if (!pwdForm.nova.trim()) { showToast(t('profile.newPassword')); return }
+        if (pwdForm.nova.length < 6) { showToast(t('profile.minChars')); return }
+        if (pwdForm.nova !== pwdForm.confirma) { showToast(locale === 'en' ? 'Passwords do not match' : 'As senhas não coincidem'); return }
 
         setSavingPwd(true)
         const { error } = await supabase.auth.updateUser({ password: pwdForm.nova })
         if (error) {
             showToast('Erro: ' + error.message)
         } else {
-            showToast('Senha alterada com sucesso!')
+            showToast(locale === 'en' ? 'Password changed!' : 'Senha alterada com sucesso!')
             setChangingPwd(false)
             setPwdForm({ current: '', nova: '', confirma: '' })
         }
@@ -47,34 +50,34 @@ export default function MeuPerfil() {
     const loginProvider = user?.app_metadata?.provider
     const isGoogleUser = loginProvider === 'google'
     const createdAt = usuario?.created_at
-        ? new Date(usuario.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+        ? new Date(usuario.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
         : '—'
 
     return (
         <div className="page-container">
             <div className="page-header">
                 <h2>
-                    👤 Meu Perfil
+                    👤 {t('profile.title')}
                     {isSuperAdmin && <span className="admin-badge">ADMIN</span>}
                 </h2>
-                <p>Gerencie suas informações pessoais</p>
+                <p>{t('profile.subtitle')}</p>
             </div>
 
             {/* Informações pessoais */}
             <div className="section-card animate-fade-in">
                 <div className="section-card-header">
-                    <h3>Informações Pessoais</h3>
+                    <h3>{t('profile.personalInfo')}</h3>
                 </div>
                 <div className="section-card-body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
                     <div className="perfil-info-grid">
                         <div className="form-group">
-                            <label>Nome</label>
+                            <label>{t('profile.name')}</label>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <input
                                     className="form-input"
                                     value={nome}
                                     onChange={(e) => setNome(e.target.value)}
-                                    placeholder="Seu nome"
+                                    placeholder={t('profile.name')}
                                 />
                                 <button
                                     className="btn btn-primary"
@@ -82,33 +85,33 @@ export default function MeuPerfil() {
                                     disabled={saving || nome === usuario?.nome}
                                     style={{ whiteSpace: 'nowrap' }}
                                 >
-                                    {saving ? 'Salvando...' : 'Salvar'}
+                                    {saving ? t('common.saving') : t('common.save')}
                                 </button>
                             </div>
                         </div>
 
                         <div className="form-group">
-                            <label>Email</label>
+                            <label>{t('profile.email')}</label>
                             <input className="form-input" value={usuario?.email ?? ''} disabled />
-                            <small style={{ color: 'var(--gray-500)', fontSize: '0.7rem' }}>O email não pode ser alterado</small>
+                            <small style={{ color: 'var(--gray-500)', fontSize: '0.7rem' }}>{t('profile.emailNote')}</small>
                         </div>
 
                         <div className="form-group">
-                            <label>Função</label>
+                            <label>{t('profile.role')}</label>
                             <div>
                                 <span className={`badge ${isSuperAdmin ? 'badge-priority-alta' : 'badge-light'}`}>
-                                    {usuario?.role === 'SUPERADMIN' ? 'Administrador' : 'Usuário'}
+                                    {usuario?.role === 'SUPERADMIN' ? t('profile.admin') : t('profile.user')}
                                 </span>
                             </div>
                         </div>
 
                         <div className="form-group">
-                            <label>Membro desde</label>
+                            <label>{t('profile.memberSince')}</label>
                             <p style={{ margin: 0, fontSize: '0.85rem' }}>{createdAt}</p>
                         </div>
 
                         <div className="form-group">
-                            <label>Método de login</label>
+                            <label>{t('profile.loginMethod')}</label>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 {isGoogleUser ? (
                                     <>
@@ -116,10 +119,31 @@ export default function MeuPerfil() {
                                         <span style={{ fontSize: '0.85rem' }}>Google</span>
                                     </>
                                 ) : (
-                                    <span style={{ fontSize: '0.85rem' }}>Email / Senha</span>
+                                    <span style={{ fontSize: '0.85rem' }}>Email / {locale === 'en' ? 'Password' : 'Senha'}</span>
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Preferências */}
+            <div className="section-card animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
+                <div className="section-card-header">
+                    <h3>{t('profile.preferences')}</h3>
+                </div>
+                <div className="section-card-body" style={{ padding: 24 }}>
+                    <div className="form-group" style={{ maxWidth: 300 }}>
+                        <label>{t('profile.language')}</label>
+                        <select
+                            className="form-select"
+                            value={locale}
+                            onChange={(e) => setLocale(e.target.value as Locale)}
+                        >
+                            {LOCALES.map((l) => (
+                                <option key={l} value={l}>{LOCALE_LABELS[l]}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
             </div>
@@ -128,41 +152,41 @@ export default function MeuPerfil() {
             {!isGoogleUser && (
                 <div className="section-card animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                     <div className="section-card-header">
-                        <h3>Segurança</h3>
+                        <h3>{t('profile.security')}</h3>
                     </div>
                     <div className="section-card-body" style={{ padding: 24 }}>
                         {!changingPwd ? (
                             <button className="btn btn-secondary" onClick={() => setChangingPwd(true)}>
-                                Alterar senha
+                                {t('profile.changePassword')}
                             </button>
                         ) : (
                             <div style={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div className="form-group">
-                                    <label>Nova senha</label>
+                                    <label>{t('profile.newPassword')}</label>
                                     <input
                                         className="form-input"
                                         type="password"
                                         value={pwdForm.nova}
                                         onChange={(e) => setPwdForm({ ...pwdForm, nova: e.target.value })}
-                                        placeholder="Mínimo 6 caracteres"
+                                        placeholder={t('profile.minChars')}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Confirmar nova senha</label>
+                                    <label>{t('profile.confirmPassword')}</label>
                                     <input
                                         className="form-input"
                                         type="password"
                                         value={pwdForm.confirma}
                                         onChange={(e) => setPwdForm({ ...pwdForm, confirma: e.target.value })}
-                                        placeholder="Repita a nova senha"
+                                        placeholder={t('profile.repeatPassword')}
                                     />
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
                                     <button className="btn btn-secondary" onClick={() => { setChangingPwd(false); setPwdForm({ current: '', nova: '', confirma: '' }) }}>
-                                        Cancelar
+                                        {t('common.cancel')}
                                     </button>
                                     <button className="btn btn-primary" onClick={handleChangePassword} disabled={savingPwd}>
-                                        {savingPwd ? 'Salvando...' : 'Alterar Senha'}
+                                        {savingPwd ? t('common.saving') : t('profile.changePassword')}
                                     </button>
                                 </div>
                             </div>
@@ -174,14 +198,14 @@ export default function MeuPerfil() {
             {/* Sessão */}
             <div className="section-card animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                 <div className="section-card-header">
-                    <h3>Sessão</h3>
+                    <h3>{t('profile.session')}</h3>
                 </div>
                 <div className="section-card-body" style={{ padding: 24 }}>
                     <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 16 }}>
-                        Ao sair, você precisará fazer login novamente para acessar o sistema.
+                        {t('profile.sessionInfo')}
                     </p>
                     <button className="btn btn-danger" onClick={signOut}>
-                        Sair do sistema
+                        {t('profile.signOut')}
                     </button>
                 </div>
             </div>

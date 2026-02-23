@@ -2522,3 +2522,104 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== ANOTAÇÕES DE PROJETO ===== */
+.anotacoes-row td {
+  background: var(--gray-50, #fafafa);
+}
+
+.anotacoes-panel {
+  padding: 16px 20px;
+}
+
+.anotacoes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.anotacoes-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gray-500, #737373);
+}
+
+.anotacoes-empty {
+  font-size: 0.8rem;
+  color: var(--gray-400, #a3a3a3);
+  padding: 8px 0;
+  text-align: center;
+}
+
+.anotacoes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anotacao-card {
+  background: white;
+  border: 1px solid var(--gray-200, #e5e5e5);
+  border-radius: var(--radius-sm, 6px);
+  padding: 12px 14px;
+}
+
+.anotacao-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.anotacao-card-header strong {
+  font-size: 0.85rem;
+  color: var(--gray-900, #171717);
+}
+
+.anotacao-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.anotacao-card:hover .anotacao-actions {
+  opacity: 1;
+}
+
+.anotacao-card-body {
+  font-size: 0.8rem;
+  color: var(--gray-600, #525252);
+  margin-top: 6px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.anotacao-card-date {
+  font-size: 0.65rem;
+  color: var(--gray-400, #a3a3a3);
+  margin-top: 6px;
+}
+
+.anotacao-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.anotacao-form .form-input {
+  font-size: 0.85rem;
+}
+
+.anotacao-form .form-textarea {
+  font-size: 0.8rem;
+  resize: vertical;
+  min-height: 60px;
+}

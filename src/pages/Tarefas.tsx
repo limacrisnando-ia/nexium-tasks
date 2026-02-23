@@ -5,11 +5,7 @@ import Modal from '../components/Modal'
 import { showToast } from '../components/Toast'
 import { NexiumIcon } from '../components/NexiumIcon'
 import { useFoco, phaseLabel, phaseColor, type QueueTask } from '../contexts/FocoContext'
-
-function formatDate(d: string | null) {
-    if (!d) return '—'
-    return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
-}
+import { useLanguage } from '../contexts/LanguageContext'
 function pad(n: number) { return n.toString().padStart(2, '0') }
 function fmtTime(s: number) { return `${pad(Math.floor(s / 60))}:${pad(s % 60)}` }
 
@@ -22,6 +18,12 @@ const prioridadeOpts = ['Alta', 'Média', 'Baixa'] as const
 const emptyForm: { titulo: string; descricao: string; cliente_id: string; projeto_id: string; prazo: string; status: Tarefa['status']; prioridade: Tarefa['prioridade'] } = { titulo: '', descricao: '', cliente_id: '', projeto_id: '', prazo: '', status: 'A Fazer', prioridade: 'Média' }
 
 export default function Tarefas() {
+    const { t, locale } = useLanguage()
+
+    function formatDate(d: string | null) {
+        if (!d) return '—'
+        return new Date(d + 'T00:00:00').toLocaleDateString(locale === 'en' ? 'en-US' : 'pt-BR')
+    }
     const [tarefas, setTarefas] = useState<(Tarefa & { cliente_nome?: string; nome_projeto?: string })[]>([])
     const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
     const [projetos, setProjetos] = useState<Pick<Projeto, 'id' | 'nome_projeto' | 'cliente_id'>[]>([])
@@ -119,12 +121,12 @@ export default function Tarefas() {
         }
         if (editingId) {
             const { error } = await supabase.from('tarefas').update(payload).eq('id', editingId)
-            if (error) { showToast('Erro: ' + error.message); setSaving(false); return }
-            showToast('Tarefa atualizada')
+            if (error) { showToast(t('common.error') + ': ' + error.message); setSaving(false); return }
+            showToast(t('tasks.taskUpdated'))
         } else {
             const { error } = await supabase.from('tarefas').insert(payload)
-            if (error) { showToast('Erro: ' + error.message); setSaving(false); return }
-            showToast('Tarefa criada')
+            if (error) { showToast(t('common.error') + ': ' + error.message); setSaving(false); return }
+            showToast(t('tasks.taskCreated'))
         }
         setSaving(false)
         setModalOpen(false)
@@ -132,10 +134,10 @@ export default function Tarefas() {
     }
 
     async function handleDelete(id: string) {
-        if (!confirm('Excluir tarefa?')) return
+        if (!confirm(t('tasks.confirmDelete'))) return
         const { error } = await supabase.from('tarefas').delete().eq('id', id)
-        if (error) { showToast('Erro: ' + error.message); return }
-        showToast('Tarefa excluída')
+        if (error) { showToast(t('common.error') + ': ' + error.message); return }
+        showToast(t('tasks.taskDeleted'))
         loadData()
     }
 
@@ -161,25 +163,25 @@ export default function Tarefas() {
 
     function activateFocoMode() {
         if (!focoClienteId) {
-            showToast('Selecione um cliente para o modo foco')
+            showToast(t('tasks.selectClientFirst'))
             return
         }
         const clientTasks = tarefas.filter(
-            t => t.cliente_id === focoClienteId && t.status !== 'Concluída'
+            task => task.cliente_id === focoClienteId && task.status !== 'Concluída'
         )
         if (clientTasks.length === 0) {
-            showToast('Nenhuma tarefa pendente para este cliente')
+            showToast(t('tasks.noPendingForClient'))
             return
         }
         setSelectedCliente(focoClienteId)
         fila.forEach(f => removeFromQueue(f.id))
-        clientTasks.forEach(t => {
-            addToQueue({ ...t, cliente_nome: t.cliente_nome, nome_projeto: t.nome_projeto })
+        clientTasks.forEach(task => {
+            addToQueue({ ...task, cliente_nome: task.cliente_nome, nome_projeto: task.nome_projeto })
         })
         syncQueueStatuses(clientTasks, 0)
         setFocoMode(true)
         const clientName = clientes.find(c => c.id === focoClienteId)?.nome || ''
-        showToast(`🎯 Modo Foco ativado — ${clientTasks.length} tarefa(s) de ${clientName}`)
+        showToast(`${t('tasks.focusActivated')} ${clientTasks.length} ${t('tasks.tasksOf')} ${clientName}`)
     }
 
     async function deactivateFocoMode() {
@@ -250,21 +252,21 @@ export default function Tarefas() {
     return (
         <div className="page-container">
             <div className="page-header">
-                <h2>Tarefas</h2>
-                <p>Gerencie todas as suas tarefas</p>
+                <h2>{t('tasks.title')}</h2>
+                <p>{t('tasks.subtitle')}</p>
             </div>
 
             <div className="filters-bar">
                 <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                    <option value="Todos">Todos os status</option>
+                    <option value="Todos">{t('tasks.allStatuses')}</option>
                     {statusOpts.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <select className="filter-select" value={filterPrioridade} onChange={(e) => setFilterPrioridade(e.target.value)}>
-                    <option value="Todos">Todas as prioridades</option>
+                    <option value="Todos">{t('tasks.allPriorities')}</option>
                     {prioridadeOpts.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select className="filter-select" value={filterCliente} onChange={(e) => setFilterCliente(e.target.value)}>
-                    <option value="Todos">Todos os clientes</option>
+                    <option value="Todos">{t('tasks.allClients')}</option>
                     {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
                 <div style={{ flex: 1 }} />
@@ -272,7 +274,7 @@ export default function Tarefas() {
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    Nova Tarefa
+                    {t('tasks.new')}
                 </button>
             </div>
 
@@ -283,8 +285,8 @@ export default function Tarefas() {
                         <div className="foco-section-left">
                             <span className="foco-section-icon">⏱</span>
                             <div>
-                                <div className="foco-section-title">Modo Foco</div>
-                                <div className="foco-section-desc">Selecione um cliente para iniciar o timer com todas as tarefas pendentes</div>
+                                <div className="foco-section-title">{t('tasks.focusMode')}</div>
+                                <div className="foco-section-desc">{t('tasks.focusDesc')}</div>
                             </div>
                         </div>
                         <div className="foco-section-right">
@@ -293,11 +295,11 @@ export default function Tarefas() {
                                 value={focoClienteId}
                                 onChange={(e) => setFocoClienteId(e.target.value)}
                             >
-                                <option value="">Selecionar cliente...</option>
+                                <option value="">{t('tasks.selectClient')}</option>
                                 {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                             </select>
                             <button className="btn btn-primary" onClick={activateFocoMode}>
-                                Ativar Modo Foco
+                                {t('tasks.activateFocus')}
                             </button>
                         </div>
                     </div>
@@ -339,25 +341,25 @@ export default function Tarefas() {
                         {/* Controls */}
                         <div className="timer-bar-controls">
                             {!running ? (
-                                <button className="timer-bar-btn timer-bar-btn-primary" onClick={startTimer} title="Iniciar">▶</button>
+                                <button className="timer-bar-btn timer-bar-btn-primary" onClick={startTimer} title={t('tasks.start')}>▶</button>
                             ) : (
-                                <button className="timer-bar-btn" onClick={pauseTimer} title="Pausar">⏸</button>
+                                <button className="timer-bar-btn" onClick={pauseTimer} title={t('tasks.pause')}>⏸</button>
                             )}
-                            <button className="timer-bar-btn" onClick={skipPhase} title="Pular fase">⏭</button>
-                            <button className="timer-bar-btn" onClick={resetTimer} title="Resetar">↺</button>
+                            <button className="timer-bar-btn" onClick={skipPhase} title={t('tasks.skipPhase')}>⏭</button>
+                            <button className="timer-bar-btn" onClick={resetTimer} title={t('tasks.reset')}>↺</button>
                             {currentTask && (
-                                <button className="timer-bar-btn timer-bar-btn-success" onClick={handleCompleteCurrent} title="Concluir tarefa atual">✓</button>
+                                <button className="timer-bar-btn timer-bar-btn-success" onClick={handleCompleteCurrent} title={t('tasks.completeTask')}>✓</button>
                             )}
                         </div>
 
-                        <div className="timer-bar-cycle">Ciclo {cycleCount + 1}</div>
+                        <div className="timer-bar-cycle">{t('tasks.cycle')} {cycleCount + 1}</div>
 
                         {/* Queue count */}
                         <div className="timer-bar-queue-info">
-                            {currentIndex + 1}/{fila.length} tarefas
+                            {currentIndex + 1}/{fila.length} {t('tasks.tasksCount')}
                         </div>
 
-                        <button className="timer-bar-btn timer-bar-btn-exit" onClick={deactivateFocoMode} title="Encerrar modo foco">✕</button>
+                        <button className="timer-bar-btn timer-bar-btn-exit" onClick={deactivateFocoMode} title={t('tasks.exitFocus')}>✕</button>
                     </div>
 
                     {/* Queue list */}
@@ -395,8 +397,8 @@ export default function Tarefas() {
                             <div className="empty-state-brand">
                                 <NexiumIcon size={60} color="#000" />
                             </div>
-                            <p>Nenhuma tarefa encontrada</p>
-                            <button className="btn btn-secondary" onClick={openCreate}>Criar primeira tarefa</button>
+                            <p>{t('tasks.noTasks')}</p>
+                            <button className="btn btn-secondary" onClick={openCreate}>{t('tasks.createFirst')}</button>
                         </div>
                     </div>
                 </div>
@@ -415,25 +417,25 @@ export default function Tarefas() {
                                 </div>
                                 <div className="kanban-column-body">
                                     {columnTasks.length === 0 ? (
-                                        <div className="kanban-empty">Nenhuma tarefa</div>
+                                        <div className="kanban-empty">{t('tasks.noTasksInColumn')}</div>
                                     ) : (
-                                        columnTasks.map((t) => {
-                                            const atrasada = t.prazo && t.status !== 'Concluída' && new Date(t.prazo + 'T00:00:00') < new Date(new Date().toDateString())
-                                            const inQueue = filaIds.has(t.id)
+                                        columnTasks.map((task) => {
+                                            const atrasada = task.prazo && task.status !== 'Concluída' && new Date(task.prazo + 'T00:00:00') < new Date(new Date().toDateString())
+                                            const inQueue = filaIds.has(task.id)
                                             return (
-                                                <div key={t.id} className={`kanban-card ${atrasada ? 'kanban-card-late' : ''} ${inQueue ? 'kanban-card-queued' : ''}`}>
+                                                <div key={task.id} className={`kanban-card ${atrasada ? 'kanban-card-late' : ''} ${inQueue ? 'kanban-card-queued' : ''}`}>
                                                     <div className="kanban-card-header">
-                                                        <span className="kanban-card-title">{t.titulo}</span>
-                                                        <span className={`kanban-card-priority kanban-priority-${t.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}>
-                                                            {t.prioridade}
+                                                        <span className="kanban-card-title">{task.titulo}</span>
+                                                        <span className={`kanban-card-priority kanban-priority-${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}>
+                                                            {task.prioridade}
                                                         </span>
                                                     </div>
-                                                    {t.nome_projeto && (
-                                                        <div className="kanban-card-project">{t.nome_projeto}</div>
+                                                    {task.nome_projeto && (
+                                                        <div className="kanban-card-project">{task.nome_projeto}</div>
                                                     )}
                                                     <div className="kanban-card-meta">
-                                                        {t.cliente_nome && <span>👤 {t.cliente_nome}</span>}
-                                                        {t.prazo && <span className={atrasada ? 'kanban-card-late-text' : ''}>📅 {formatDate(t.prazo)}</span>}
+                                                        {task.cliente_nome && <span>👤 {task.cliente_nome}</span>}
+                                                        {task.prazo && <span className={atrasada ? 'kanban-card-late-text' : ''}>📅 {formatDate(task.prazo)}</span>}
                                                     </div>
                                                     <div className="kanban-card-actions">
                                                         {status !== 'Concluída' && (
@@ -445,17 +447,17 @@ export default function Tarefas() {
                                                                         status: nextStatus,
                                                                         updated_at: new Date().toISOString(),
                                                                         ...(nextStatus === 'Concluída' ? { data_conclusao: new Date().toISOString().split('T')[0] } : {}),
-                                                                    }).eq('id', t.id)
-                                                                    showToast(`Tarefa movida para "${nextStatus}"`)
+                                                                    }).eq('id', task.id)
+                                                                    showToast(`${t('tasks.movedTo')} "${nextStatus}"`)
                                                                     loadData()
                                                                 }}
-                                                                title={status === 'A Fazer' ? 'Mover para Em Andamento' : 'Concluir'}
+                                                                title={status === 'A Fazer' ? t('tasks.moveToInProgress') : t('tasks.complete')}
                                                             >
-                                                                {status === 'A Fazer' ? '→ Iniciar' : '✓ Concluir'}
+                                                                {status === 'A Fazer' ? t('tasks.startAction') : t('tasks.completeAction')}
                                                             </button>
                                                         )}
-                                                        <button className="kanban-card-action-btn" onClick={() => openEdit(t)}>✏️</button>
-                                                        <button className="kanban-card-action-btn kanban-delete-btn" onClick={() => handleDelete(t.id)}>🗑</button>
+                                                        <button className="kanban-card-action-btn" onClick={() => openEdit(task)}>✏️</button>
+                                                        <button className="kanban-card-action-btn kanban-delete-btn" onClick={() => handleDelete(task.id)}>🗑</button>
                                                     </div>
                                                 </div>
                                             )
@@ -472,54 +474,54 @@ export default function Tarefas() {
             <Modal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
-                title={editingId ? 'Editar Tarefa' : 'Nova Tarefa'}
+                title={editingId ? t('tasks.editTask') : t('tasks.newTaskTitle')}
                 footer={
                     <>
-                        <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button>
+                        <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>{t('common.cancel')}</button>
                         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                            {saving ? 'Salvando...' : 'Salvar'}
+                            {saving ? t('common.saving') : t('common.save')}
                         </button>
                     </>
                 }
             >
                 <div className="form-group">
-                    <label>Título *</label>
-                    <input className="form-input" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da tarefa" />
+                    <label>{t('clientDetail.taskTitle')} *</label>
+                    <input className="form-input" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder={t('clientDetail.taskPlaceholder')} />
                 </div>
                 <div className="form-group">
-                    <label>Descrição</label>
-                    <textarea className="form-textarea" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descrição" />
+                    <label>{t('clientDetail.description')}</label>
+                    <textarea className="form-textarea" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder={t('clientDetail.taskDescPlaceholder')} />
                 </div>
                 <div className="form-row">
                     <div className="form-group">
-                        <label>Cliente</label>
+                        <label>{t('tasks.client')}</label>
                         <select className="form-select" value={form.cliente_id} onChange={(e) => setForm({ ...form, cliente_id: e.target.value, projeto_id: '' })}>
-                            <option value="">Nenhum</option>
+                            <option value="">{t('tasks.none')}</option>
                             {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                         </select>
                     </div>
                     <div className="form-group">
-                        <label>Projeto</label>
+                        <label>{t('tasks.project')}</label>
                         <select className="form-select" value={form.projeto_id} onChange={(e) => setForm({ ...form, projeto_id: e.target.value })}>
-                            <option value="">Nenhum</option>
+                            <option value="">{t('tasks.none')}</option>
                             {filteredProjetos.map((p) => <option key={p.id} value={p.id}>{p.nome_projeto}</option>)}
                         </select>
                     </div>
                 </div>
                 <div className="form-row">
                     <div className="form-group">
-                        <label>Prazo</label>
+                        <label>{t('clientDetail.deadline')}</label>
                         <input className="form-input" type="date" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
                     </div>
                     <div className="form-group">
-                        <label>Prioridade</label>
+                        <label>{t('clientDetail.priority')}</label>
                         <select className="form-select" value={form.prioridade} onChange={(e) => setForm({ ...form, prioridade: e.target.value as Tarefa['prioridade'] })}>
                             {prioridadeOpts.map((p) => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
                 </div>
                 <div className="form-group">
-                    <label>Status</label>
+                    <label>{t('common.status')}</label>
                     <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Tarefa['status'] })}>
                         {statusOpts.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>

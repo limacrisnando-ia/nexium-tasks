@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Tarefa, Cliente } from '../lib/types'
+import { useLanguage } from '../contexts/LanguageContext'
 
-const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const dayNamesPt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const monthNamesPt = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const statusOpts = ['A Fazer', 'Em Andamento', 'Concluída'] as const
 const prioridadeOpts = ['Alta', 'Média', 'Baixa'] as const
 
@@ -12,6 +15,9 @@ interface TarefaComCliente extends Tarefa {
 }
 
 export default function Calendario() {
+    const { t, locale } = useLanguage()
+    const dayNames = locale === 'en' ? dayNamesEn : dayNamesPt
+    const monthNames = locale === 'en' ? monthNamesEn : monthNamesPt
     const [tarefas, setTarefas] = useState<TarefaComCliente[]>([])
     const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nome'>[]>([])
     const [loading, setLoading] = useState(true)
@@ -117,21 +123,21 @@ export default function Calendario() {
     return (
         <div className="page-container">
             <div className="page-header">
-                <h2>Calendário de Prazos</h2>
-                <p>Visualize os prazos das tarefas</p>
+                <h2>{t('calendar.title')}</h2>
+                <p>{t('calendar.subtitle')}</p>
             </div>
 
             <div className="filters-bar">
                 <select className="filter-select" value={filterCliente} onChange={(e) => setFilterCliente(e.target.value)}>
-                    <option value="Todos">Todos os clientes</option>
+                    <option value="Todos">{t('calendar.allClients')}</option>
                     {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
                 <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                    <option value="Todos">Todos os status</option>
+                    <option value="Todos">{t('calendar.allStatuses')}</option>
                     {statusOpts.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <select className="filter-select" value={filterPrioridade} onChange={(e) => setFilterPrioridade(e.target.value)}>
-                    <option value="Todos">Todas as prioridades</option>
+                    <option value="Todos">{t('calendar.allPriorities')}</option>
                     {prioridadeOpts.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
             </div>
@@ -149,7 +155,7 @@ export default function Calendario() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                 </button>
-                <button className="btn btn-secondary btn-sm" onClick={goToday}>Hoje</button>
+                <button className="btn btn-secondary btn-sm" onClick={goToday}>{t('calendar.today')}</button>
             </div>
 
             {/* Calendar grid */}
@@ -185,7 +191,7 @@ export default function Calendario() {
                             ))}
                             {dayTasks.length > 3 && (
                                 <div style={{ fontSize: '0.6rem', color: 'var(--gray-500)', paddingLeft: 6 }}>
-                                    +{dayTasks.length - 3} mais
+                                    +{dayTasks.length - 3} {locale === 'en' ? 'more' : 'mais'}
                                 </div>
                             )}
                         </div>

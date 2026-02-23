@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { NexiumIcon } from '../components/NexiumIcon'
+import { getTranslation, type Locale } from '../lib/i18n'
 
 export default function Login() {
     const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
@@ -12,6 +13,11 @@ export default function Login() {
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState('')
 
+    // Read locale from localStorage since LanguageContext isn't available on login
+    const stored = localStorage.getItem('nexium-locale')
+    const locale: Locale = (stored === 'en' || stored === 'pt-BR') ? stored : 'pt-BR'
+    const t = (key: string) => getTranslation(locale, key)
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setError('')
@@ -22,12 +28,12 @@ export default function Login() {
             const result = await signInWithEmail(email, password)
             if (result.error) setError(result.error)
         } else {
-            if (!nome.trim()) { setError('Informe seu nome'); setLoading(false); return }
+            if (!nome.trim()) { setError(locale === 'en' ? 'Enter your name' : 'Informe seu nome'); setLoading(false); return }
             const result = await signUpWithEmail(email, password, nome)
             if (result.error) {
                 setError(result.error)
             } else {
-                setSuccess('Conta criada! Verifique seu email para confirmar.')
+                setSuccess(locale === 'en' ? 'Account created! Check your email to confirm.' : 'Conta criada! Verifique seu email para confirmar.')
             }
         }
         setLoading(false)
@@ -51,28 +57,28 @@ export default function Login() {
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Entrar com Google
+                    {t('login.signInGoogle')}
                 </button>
 
                 <div className="login-divider">
-                    <span>ou</span>
+                    <span>{t('login.or')}</span>
                 </div>
 
                 <form onSubmit={handleSubmit}>
                     {mode === 'register' && (
                         <div className="form-group">
-                            <label>Nome</label>
+                            <label>{t('profile.name')}</label>
                             <input
                                 className="form-input"
                                 type="text"
                                 value={nome}
                                 onChange={(e) => setNome(e.target.value)}
-                                placeholder="Seu nome"
+                                placeholder={t('login.yourName')}
                             />
                         </div>
                     )}
                     <div className="form-group">
-                        <label>Email</label>
+                        <label>{t('login.email')}</label>
                         <input
                             className="form-input"
                             type="email"
@@ -83,7 +89,7 @@ export default function Login() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Senha</label>
+                        <label>{t('login.password')}</label>
                         <input
                             className="form-input"
                             type="password"
@@ -99,15 +105,17 @@ export default function Login() {
                     {success && <div className="login-success">{success}</div>}
 
                     <button className="btn btn-primary login-submit" type="submit" disabled={loading}>
-                        {loading ? 'Carregando...' : mode === 'login' ? 'Entrar' : 'Criar Conta'}
+                        {loading
+                            ? (mode === 'login' ? t('login.signing') : t('login.creating'))
+                            : (mode === 'login' ? t('login.signIn') : t('login.signUp'))}
                     </button>
                 </form>
 
                 <div className="login-toggle">
                     {mode === 'login' ? (
-                        <span>Não tem conta? <button type="button" onClick={() => { setMode('register'); setError(''); setSuccess('') }}>Criar conta</button></span>
+                        <span>{t('login.noAccount')} <button type="button" onClick={() => { setMode('register'); setError(''); setSuccess('') }}>{t('login.signUp')}</button></span>
                     ) : (
-                        <span>Já tem conta? <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess('') }}>Entrar</button></span>
+                        <span>{t('login.hasAccount')} <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess('') }}>{t('login.signIn')}</button></span>
                     )}
                 </div>
             </div>

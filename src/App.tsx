@@ -7,6 +7,7 @@ import Login from './pages/Login'
 
 import { FocoProvider } from './contexts/FocoContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 
 // Lazy load pages that aren't immediately needed
 const Clientes = lazy(() => import('./pages/Clientes'))
@@ -51,26 +52,28 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <FocoProvider>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/login" element={<LoginRoute />} />
-              <Route element={<AuthGuard><Layout /></AuthGuard>}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/clientes" element={<Clientes />} />
-                <Route path="/clientes/:id" element={<ClienteDetalhe />} />
-                <Route path="/tarefas" element={<Tarefas />} />
-                <Route path="/calendario" element={<Calendario />} />
-                <Route path="/perfil" element={<MeuPerfil />} />
-                {/* Admin routes */}
-                <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-                <Route path="/admin/usuarios" element={<AdminGuard><AdminUsuarios /></AdminGuard>} />
-                <Route path="/admin/relatorios" element={<AdminGuard><AdminRelatorios /></AdminGuard>} />
-              </Route>
-            </Routes>
-          </Suspense>
-          <ToastContainer />
-        </FocoProvider>
+        <LanguageProvider>
+          <FocoProvider>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/login" element={<LoginRoute />} />
+                <Route element={<AuthGuard><Layout /></AuthGuard>}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/clientes" element={<Clientes />} />
+                  <Route path="/clientes/:id" element={<ClienteDetalhe />} />
+                  <Route path="/tarefas" element={<Tarefas />} />
+                  <Route path="/calendario" element={<Calendario />} />
+                  <Route path="/perfil" element={<MeuPerfil />} />
+                  {/* Admin routes */}
+                  <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+                  <Route path="/admin/usuarios" element={<AdminGuard><AdminUsuarios /></AdminGuard>} />
+                  <Route path="/admin/relatorios" element={<AdminGuard><AdminRelatorios /></AdminGuard>} />
+                </Route>
+              </Routes>
+            </Suspense>
+            <ToastContainer />
+          </FocoProvider>
+        </LanguageProvider>
       </AuthProvider>
     </BrowserRouter>
   )

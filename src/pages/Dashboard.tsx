@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { DashboardMetricas, ProximaTarefa } from '../lib/types'
 import { NexiumIcon } from '../components/NexiumIcon'
+import { useLanguage } from '../contexts/LanguageContext'
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+function formatCurrency(value: number, locale: string = 'pt-BR') {
+    return locale === 'en'
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+        : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 function urgenciaBadgeClass(urgencia: string) {
@@ -24,9 +27,11 @@ function prioridadeBadgeClass(prioridade: string) {
     }
 }
 
-const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const monthNamesPt = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export default function Dashboard() {
+    const { t, locale } = useLanguage()
     const [metricas, setMetricas] = useState<DashboardMetricas | null>(null)
     const [tarefas, setTarefas] = useState<ProximaTarefa[]>([])
     const [loading, setLoading] = useState(true)
@@ -119,60 +124,64 @@ export default function Dashboard() {
             <div className="page-header">
                 <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <NexiumIcon size={24} />
-                    Dashboard
+                    {t('dashboard.title')}
                 </h2>
-                <p>Visão geral do seu sistema</p>
+                <p>{t('dashboard.subtitle')}</p>
             </div>
 
             {/* Filtro Mês/Ano */}
-            <div className="filters-bar" style={{ marginBottom: 16 }}>
-                <select className="filter-select" value={filterMes} onChange={(e) => setFilterMes(Number(e.target.value))}>
-                    {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                </select>
-                <select className="filter-select" value={filterAno} onChange={(e) => setFilterAno(Number(e.target.value))}>
-                    {[filterAno - 1, filterAno, filterAno + 1].map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-            </div>
+            {(() => {
+                const monthNames = locale === 'en' ? monthNamesEn : monthNamesPt; return (
+                    <div className="filters-bar" style={{ marginBottom: 16 }}>
+                        <select className="filter-select" value={filterMes} onChange={(e) => setFilterMes(Number(e.target.value))}>
+                            {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                        </select>
+                        <select className="filter-select" value={filterAno} onChange={(e) => setFilterAno(Number(e.target.value))}>
+                            {[filterAno - 1, filterAno, filterAno + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                );
+            })()}
 
             {/* Metric Cards */}
             <div className="metrics-grid stagger-children">
                 <div className="metric-card">
-                    <div className="label">Faturado no Mês</div>
+                    <div className="label">{t('dashboard.billedTotal')} ({locale === 'en' ? 'Month' : 'Mês'})</div>
                     <div className="value" style={{ fontSize: '1.4rem' }}>
-                        {formatCurrency(valorFaturadoPeriodo)}
+                        {formatCurrency(valorFaturadoPeriodo, locale)}
                     </div>
-                    <div className="sub">{monthNames[filterMes - 1]} {filterAno}</div>
+                    <div className="sub">{(locale === 'en' ? monthNamesEn : monthNamesPt)[filterMes - 1]} {filterAno}</div>
                 </div>
                 <div className="metric-card">
-                    <div className="label">Valor a Receber</div>
+                    <div className="label">{t('dashboard.toReceive')}</div>
                     <div className="value" style={{ fontSize: '1.4rem' }}>
-                        {formatCurrency(valorReceberPeriodo)}
+                        {formatCurrency(valorReceberPeriodo, locale)}
                     </div>
-                    <div className="sub">Total pendente</div>
+                    <div className="sub">{t('common.pendingStatus')}</div>
                 </div>
                 <div className="metric-card">
-                    <div className="label">Faturado Total</div>
+                    <div className="label">{t('dashboard.billedTotal')}</div>
                     <div className="value" style={{ fontSize: '1.4rem' }}>
-                        {formatCurrency(metricas?.valor_faturado ?? 0)}
-                    </div>
-                </div>
-                <div className="metric-card">
-                    <div className="label">Receita Recorrente</div>
-                    <div className="value" style={{ fontSize: '1.4rem' }}>
-                        {formatCurrency(metricas?.receita_recorrente ?? 0)}
-                        <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginLeft: 4 }}>/mês</span>
+                        {formatCurrency(metricas?.valor_faturado ?? 0, locale)}
                     </div>
                 </div>
                 <div className="metric-card">
-                    <div className="label">Clientes Ativos</div>
+                    <div className="label">{t('dashboard.recurringRevenue')}</div>
+                    <div className="value" style={{ fontSize: '1.4rem' }}>
+                        {formatCurrency(metricas?.receita_recorrente ?? 0, locale)}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginLeft: 4 }}>{locale === 'en' ? '/mo' : '/mês'}</span>
+                    </div>
+                </div>
+                <div className="metric-card">
+                    <div className="label">{t('dashboard.activeClients')}</div>
                     <div className="value">{metricas?.clientes_ativos ?? 0}</div>
                 </div>
                 <div className="metric-card">
-                    <div className="label">Tarefas Pendentes</div>
+                    <div className="label">{t('dashboard.pendingTasks')}</div>
                     <div className="value">{metricas?.tarefas_pendentes ?? 0}</div>
                     {(metricas?.tarefas_atrasadas ?? 0) > 0 && (
                         <div className="sub" style={{ fontWeight: 600 }}>
-                            {metricas?.tarefas_atrasadas} atrasada(s)
+                            {metricas?.tarefas_atrasadas} {t('dashboard.overdue').toLowerCase()}
                         </div>
                     )}
                 </div>
@@ -181,8 +190,8 @@ export default function Dashboard() {
             {/* Próximas Tarefas */}
             <div className="section-card animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                 <div className="section-card-header">
-                    <h3>Próximas Tarefas</h3>
-                    <span className="badge badge-light">{tarefas.length} tarefa(s)</span>
+                    <h3>{t('dashboard.recentTasks')}</h3>
+                    <span className="badge badge-light">{tarefas.length}</span>
                 </div>
                 <div className="section-card-body">
                     {tarefas.length === 0 ? (
@@ -190,47 +199,47 @@ export default function Dashboard() {
                             <div className="empty-state-brand">
                                 <NexiumIcon size={60} color="#000" />
                             </div>
-                            <p>Nenhuma tarefa pendente. Tudo em dia!</p>
+                            <p>{t('dashboard.noPendingTasks')}</p>
                         </div>
                     ) : (
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th>Tarefa</th>
-                                    <th>Cliente</th>
-                                    <th>Prazo</th>
-                                    <th>Prioridade</th>
-                                    <th>Urgência</th>
+                                    <th>{t('clientDetail.task')}</th>
+                                    <th>{t('tasks.client')}</th>
+                                    <th>{t('clientDetail.deadline')}</th>
+                                    <th>{t('clientDetail.priority')}</th>
+                                    <th>{locale === 'en' ? 'Urgency' : 'Urgência'}</th>
                                 </tr>
                             </thead>
                             <tbody className="stagger-children">
-                                {tarefas.map((t) => (
+                                {tarefas.map((tarefa) => (
                                     <tr
-                                        key={t.id}
-                                        className={`${t.prioridade === 'Alta' ? 'priority-alta' : ''} ${t.urgencia === 'Atrasada' ? 'tarefa-atrasada' : ''}`}
+                                        key={tarefa.id}
+                                        className={`${tarefa.prioridade === 'Alta' ? 'priority-alta' : ''} ${tarefa.urgencia === 'Atrasada' ? 'tarefa-atrasada' : ''}`}
                                     >
                                         <td>
-                                            <strong>{t.titulo}</strong>
-                                            {t.nome_projeto && (
-                                                <div style={{ fontSize: '0.75rem', color: t.urgencia === 'Atrasada' ? 'var(--gray-400)' : 'var(--gray-500)', marginTop: 2 }}>
-                                                    {t.nome_projeto}
+                                            <strong>{tarefa.titulo}</strong>
+                                            {tarefa.nome_projeto && (
+                                                <div style={{ fontSize: '0.75rem', color: tarefa.urgencia === 'Atrasada' ? 'var(--gray-400)' : 'var(--gray-500)', marginTop: 2 }}>
+                                                    {tarefa.nome_projeto}
                                                 </div>
                                             )}
                                         </td>
-                                        <td>{t.cliente_nome || '—'}</td>
+                                        <td>{tarefa.cliente_nome || '—'}</td>
                                         <td>
-                                            {t.prazo
-                                                ? new Date(t.prazo + 'T00:00:00').toLocaleDateString('pt-BR')
+                                            {tarefa.prazo
+                                                ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString(locale === 'en' ? 'en-US' : 'pt-BR')
                                                 : '—'}
                                         </td>
                                         <td>
-                                            <span className={`badge ${prioridadeBadgeClass(t.prioridade)}`}>
-                                                {t.prioridade}
+                                            <span className={`badge ${prioridadeBadgeClass(tarefa.prioridade)}`}>
+                                                {tarefa.prioridade}
                                             </span>
                                         </td>
                                         <td>
-                                            <span className={`badge ${urgenciaBadgeClass(t.urgencia)}`}>
-                                                {t.urgencia}
+                                            <span className={`badge ${urgenciaBadgeClass(tarefa.urgencia)}`}>
+                                                {tarefa.urgencia}
                                             </span>
                                         </td>
                                     </tr>
