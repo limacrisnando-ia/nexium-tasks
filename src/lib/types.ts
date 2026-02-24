@@ -41,6 +41,18 @@ export interface ProjetoAnotacao {
     updated_at: string | null
 }
 
+export interface ProjetoAcesso {
+    id: string
+    projeto_id: string
+    usuario_id: string
+    nome: string
+    url: string | null
+    usuario: string | null
+    senha: string | null
+    created_at: string | null
+    updated_at: string | null
+}
+
 export interface Tarefa {
     id: string
     titulo: string

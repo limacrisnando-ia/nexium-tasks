@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import type { Cliente, Projeto, Tarefa, ProjetoAnotacao } from '../lib/types'
+import type { Cliente, Projeto, Tarefa, ProjetoAnotacao, ProjetoAcesso } from '../lib/types'
 import Modal from '../components/Modal'
 import { showToast } from '../components/Toast'
 import { StatusProgressBar } from '../components/StatusProgressBar'
@@ -32,6 +32,7 @@ interface ProjetoFormState {
 const emptyProjeto: ProjetoFormState = { nome_projeto: '', tipo: 'Site', descricao: '', valor_total: '', modelo_pagamento: '50/50', status_entrada: 'Pendente', data_entrada: '', status_entrega: 'Pendente', data_entrega: '', valor_manutencao: '', status_manutencao: 'Inativo', data_inicio: '', data_conclusao: '' }
 const emptyTarefa: { titulo: string; descricao: string; prazo: string; status: Tarefa['status']; prioridade: Tarefa['prioridade']; projeto_id: string } = { titulo: '', descricao: '', prazo: '', status: 'A Fazer', prioridade: 'Média', projeto_id: '' }
 const emptyAnotacao = { titulo: '', conteudo: '' }
+const emptyAcesso = { nome: '', url: '', usuario: '', senha: '' }
 
 export default function ClienteDetalhe() {
     const { id } = useParams<{ id: string }>()
@@ -52,6 +53,7 @@ export default function ClienteDetalhe() {
     const [projetos, setProjetos] = useState<Projeto[]>([])
     const [tarefas, setTarefas] = useState<Tarefa[]>([])
     const [loading, setLoading] = useState(true)
+    const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
 
     // Projeto modal
     const [projetoModal, setProjetoModal] = useState(false)
@@ -59,14 +61,24 @@ export default function ClienteDetalhe() {
     const [projetoForm, setProjetoForm] = useState(emptyProjeto)
     const [savingP, setSavingP] = useState(false)
 
-    // Anotações
+    // Anotações & Acessos
     const [expandedProjeto, setExpandedProjeto] = useState<string | null>(null)
+    const [showAnotacoesList, setShowAnotacoesList] = useState(false)
+    const [showAcessosList, setShowAcessosList] = useState(false)
     const [anotacoes, setAnotacoes] = useState<Record<string, ProjetoAnotacao[]>>({})
+    const [acessos, setAcessos] = useState<Record<string, ProjetoAcesso[]>>({})
     const [anotacaoForm, setAnotacaoForm] = useState(emptyAnotacao)
     const [addingAnotacao, setAddingAnotacao] = useState(false)
     const [editingAnotacao, setEditingAnotacao] = useState<string | null>(null)
     const [editAnotacaoForm, setEditAnotacaoForm] = useState(emptyAnotacao)
     const [savingA, setSavingA] = useState(false)
+
+    // Acessos Form
+    const [acessoModal, setAcessoModal] = useState(false)
+    const [editingAcesso, setEditingAcesso] = useState<string | null>(null)
+    const [acessoForm, setAcessoForm] = useState(emptyAcesso)
+    const [savingAc, setSavingAc] = useState(false)
+    const [targetProjetoIdParaAcesso, setTargetProjetoIdParaAcesso] = useState<string | null>(null)
 
     // Tarefa modal
     const [tarefaModal, setTarefaModal] = useState(false)
@@ -103,6 +115,10 @@ export default function ClienteDetalhe() {
         return sum + v
     }, 0)
 
+    function togglePasswordVisibility(acessoId: string) {
+        setShowPasswordMap(prev => ({ ...prev, [acessoId]: !prev[acessoId] }))
+    }
+
     // Projeto CRUD
     function openCreateProjeto() {
         setEditingProjeto(null)
@@ -116,22 +132,22 @@ export default function ClienteDetalhe() {
             nome_projeto: p.nome_projeto,
             tipo: p.tipo,
             descricao: p.descricao || '',
-            valor_total: p.valor_total?.toString() || '',
+            valor_total: p.valor_total ? p.valor_total.toString() : '',
             modelo_pagamento: p.modelo_pagamento,
             status_entrada: p.status_entrada,
             data_entrada: p.data_entrada || '',
             status_entrega: p.status_entrega,
             data_entrega: p.data_entrega || '',
-            valor_manutencao: p.valor_manutencao?.toString() || '',
-            status_manutencao: p.status_manutencao,
+            valor_manutencao: p.valor_manutencao ? p.valor_manutencao.toString() : '',
+            status_manutencao: p.status_manutencao || 'Inativo',
             data_inicio: p.data_inicio || '',
-            data_conclusao: p.data_conclusao || '',
+            data_conclusao: p.data_conclusao || ''
         })
         setProjetoModal(true)
     }
 
     async function saveProjeto() {
-        if (!projetoForm.nome_projeto.trim()) return
+        if (!projetoForm.nome_projeto.trim() || !id) return
         setSavingP(true)
 
         const vTotal = projetoForm.valor_total ? parseFloat(projetoForm.valor_total) : 0
@@ -151,7 +167,7 @@ export default function ClienteDetalhe() {
             valor_entrega: is5050 ? Math.round(vTotal / 2 * 100) / 100 : 0,
             status_entrega: is5050 ? projetoForm.status_entrega : 'Pago',
             data_entrega: projetoForm.data_entrega || null,
-            valor_manutencao: projetoForm.valor_manutencao ? parseFloat(projetoForm.valor_manutencao) : 0,
+            valor_manutencao: projetoForm.valor_manutencao ? parseFloat(projetoForm.valor_manutencao) : null,
             status_manutencao: projetoForm.valor_manutencao ? projetoForm.status_manutencao : 'Inativo',
             data_inicio: projetoForm.data_inicio || null,
             data_conclusao: projetoForm.data_conclusao || null,
@@ -179,7 +195,7 @@ export default function ClienteDetalhe() {
         loadAll()
     }
 
-    // Anotações CRUD
+    // Anotações & Acessos CRUD
     async function toggleAnotacoes(projetoId: string) {
         if (expandedProjeto === projetoId) {
             setExpandedProjeto(null)
@@ -190,13 +206,17 @@ export default function ClienteDetalhe() {
         setExpandedProjeto(projetoId)
         setAddingAnotacao(false)
         setEditingAnotacao(null)
-        if (!anotacoes[projetoId]) {
-            const { data } = await supabase
-                .from('projeto_anotacoes')
-                .select('*')
-                .eq('projeto_id', projetoId)
-                .order('created_at', { ascending: false })
-            setAnotacoes(prev => ({ ...prev, [projetoId]: data || [] }))
+        setShowAnotacoesList(false)
+        setShowAcessosList(false)
+
+        // Fetch both anotacoes and acessos
+        if (!anotacoes[projetoId] || !acessos[projetoId]) {
+            const [notasRes, acessosRes] = await Promise.all([
+                supabase.from('projeto_anotacoes').select('*').eq('projeto_id', projetoId).order('created_at', { ascending: false }),
+                supabase.from('projeto_acessos').select('*').eq('projeto_id', projetoId).order('created_at', { ascending: false })
+            ])
+            setAnotacoes(prev => ({ ...prev, [projetoId]: notasRes.data || [] }))
+            setAcessos(prev => ({ ...prev, [projetoId]: acessosRes.data || [] }))
         }
     }
 
@@ -242,6 +262,70 @@ export default function ClienteDetalhe() {
             [projetoId]: (prev[projetoId] || []).filter(a => a.id !== anotacaoId)
         }))
         showToast(t('clientDetail.noteDeleted'))
+    }
+
+    function openCreateAcesso(projetoId: string) {
+        setTargetProjetoIdParaAcesso(projetoId)
+        setEditingAcesso(null)
+        setAcessoForm(emptyAcesso)
+        setAcessoModal(true)
+    }
+
+    function openEditAcesso(a: ProjetoAcesso, projetoId: string) {
+        setTargetProjetoIdParaAcesso(projetoId)
+        setEditingAcesso(a.id)
+        setAcessoForm({
+            nome: a.nome,
+            url: a.url || '',
+            usuario: a.usuario || '',
+            senha: a.senha || ''
+        })
+        setAcessoModal(true)
+    }
+
+    async function saveAcesso() {
+        if (!targetProjetoIdParaAcesso) return
+        if (!acessoForm.nome.trim()) { showToast(t('clientDetail.nameRequired')); return }
+        setSavingAc(true)
+
+        const payload = {
+            projeto_id: targetProjetoIdParaAcesso,
+            nome: acessoForm.nome,
+            url: acessoForm.url || null,
+            usuario: acessoForm.usuario || null,
+            senha: acessoForm.senha || null,
+            updated_at: new Date().toISOString()
+        }
+
+        if (editingAcesso) {
+            const { error } = await supabase.from('projeto_acessos').update(payload).eq('id', editingAcesso)
+            if (error) { showToast(t('common.error') + ': ' + error.message); setSavingAc(false); return }
+            setAcessos(prev => ({
+                ...prev,
+                [targetProjetoIdParaAcesso]: (prev[targetProjetoIdParaAcesso] || []).map(a => a.id === editingAcesso ? { ...a, ...payload } as ProjetoAcesso : a)
+            }))
+            showToast(t('clientDetail.accessUpdated'))
+        } else {
+            // Need to insert so not including updated_at explicitly is better, but since it's there it's fine.
+            const { data, error } = await supabase.from('projeto_acessos').insert(payload).select().single()
+            if (error) { showToast(t('common.error') + ': ' + error.message); setSavingAc(false); return }
+            setAcessos(prev => ({ ...prev, [targetProjetoIdParaAcesso]: [data, ...(prev[targetProjetoIdParaAcesso] || [])] }))
+            showToast(t('clientDetail.accessCreated'))
+        }
+
+        setSavingAc(false)
+        setAcessoModal(false)
+    }
+
+    async function deleteAcesso(acessoId: string, projetoId: string) {
+        if (!confirm(t('clientDetail.confirmDeleteAccess'))) return
+        const { error } = await supabase.from('projeto_acessos').delete().eq('id', acessoId)
+        if (error) { showToast(t('common.error') + ': ' + error.message); return }
+        setAcessos(prev => ({
+            ...prev,
+            [projetoId]: (prev[projetoId] || []).filter(a => a.id !== acessoId)
+        }))
+        showToast(t('clientDetail.accessDeleted'))
     }
 
     // Tarefa CRUD
@@ -449,86 +533,164 @@ export default function ClienteDetalhe() {
                                                 <tr className="anotacoes-row">
                                                     <td colSpan={colCount} style={{ padding: 0 }}>
                                                         <div className="anotacoes-panel">
-                                                            <div className="anotacoes-header">
-                                                                <span className="anotacoes-title">
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                                    {t('clientDetail.notes')}
-                                                                </span>
-                                                                <button className="btn btn-ghost btn-sm" onClick={() => { setAddingAnotacao(!addingAnotacao); setAnotacaoForm(emptyAnotacao) }}>
+                                                            <div className="anotacoes-header" onClick={() => setShowAnotacoesList(!showAnotacoesList)} style={{ cursor: 'pointer' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ transition: 'transform 0.2s', transform: showAnotacoesList ? 'rotate(90deg)' : 'rotate(0deg)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                                    <span className="anotacoes-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                        {t('clientDetail.notes')}
+                                                                    </span>
+                                                                </div>
+                                                                <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setAddingAnotacao(!addingAnotacao); setAnotacaoForm(emptyAnotacao); setShowAnotacoesList(true); }}>
                                                                     {addingAnotacao ? t('clientDetail.cancel') : t('clientDetail.newNote')}
                                                                 </button>
                                                             </div>
 
-                                                            {addingAnotacao && (
-                                                                <div className="anotacao-form">
-                                                                    <input
-                                                                        className="form-input"
-                                                                        value={anotacaoForm.titulo}
-                                                                        onChange={(e) => setAnotacaoForm({ ...anotacaoForm, titulo: e.target.value })}
-                                                                        placeholder={t('clientDetail.notePlaceholderTitle')}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    />
-                                                                    <textarea
-                                                                        className="form-textarea"
-                                                                        value={anotacaoForm.conteudo}
-                                                                        onChange={(e) => setAnotacaoForm({ ...anotacaoForm, conteudo: e.target.value })}
-                                                                        placeholder={t('clientDetail.notePlaceholderContent')}
-                                                                        rows={3}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    />
-                                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                                                        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); saveAnotacao(p.id) }} disabled={savingA}>
-                                                                            {savingA ? t('common.saving') : t('common.save')}
-                                                                        </button>
-                                                                    </div>
+                                                            {showAnotacoesList && (
+                                                                <div style={{ paddingTop: 16 }}>
+                                                                    {addingAnotacao && (
+                                                                        <div className="anotacao-form">
+                                                                            <input
+                                                                                className="form-input"
+                                                                                value={anotacaoForm.titulo}
+                                                                                onChange={(e) => setAnotacaoForm({ ...anotacaoForm, titulo: e.target.value })}
+                                                                                placeholder={t('clientDetail.notePlaceholderTitle')}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            />
+                                                                            <textarea
+                                                                                className="form-textarea"
+                                                                                value={anotacaoForm.conteudo}
+                                                                                onChange={(e) => setAnotacaoForm({ ...anotacaoForm, conteudo: e.target.value })}
+                                                                                placeholder={t('clientDetail.notePlaceholderContent')}
+                                                                                rows={3}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            />
+                                                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                                                                <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); saveAnotacao(p.id) }} disabled={savingA}>
+                                                                                    {savingA ? t('common.saving') : t('common.save')}
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {(anotacoes[p.id] || []).length === 0 && !addingAnotacao ? (
+                                                                        <div className="anotacoes-empty">{t('clientDetail.noNotes')}</div>
+                                                                    ) : (
+                                                                        <div className="anotacoes-list">
+                                                                            {(anotacoes[p.id] || []).map((a) => (
+                                                                                <div key={a.id} className="anotacao-card">
+                                                                                    {editingAnotacao === a.id ? (
+                                                                                        <div className="anotacao-form">
+                                                                                            <input
+                                                                                                className="form-input"
+                                                                                                value={editAnotacaoForm.titulo}
+                                                                                                onChange={(e) => setEditAnotacaoForm({ ...editAnotacaoForm, titulo: e.target.value })}
+                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                            />
+                                                                                            <textarea
+                                                                                                className="form-textarea"
+                                                                                                value={editAnotacaoForm.conteudo}
+                                                                                                onChange={(e) => setEditAnotacaoForm({ ...editAnotacaoForm, conteudo: e.target.value })}
+                                                                                                rows={3}
+                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                            />
+                                                                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                                                                                <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setEditingAnotacao(null) }}>{t('clientDetail.cancel')}</button>
+                                                                                                <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); updateAnotacao(a.id, p.id) }} disabled={savingA}>
+                                                                                                    {savingA ? t('common.saving') : t('common.save')}
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <div className="anotacao-card-header">
+                                                                                                <strong>{a.titulo}</strong>
+                                                                                                <div className="anotacao-actions">
+                                                                                                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setEditingAnotacao(a.id); setEditAnotacaoForm({ titulo: a.titulo, conteudo: a.conteudo || '' }) }}>{t('clientDetail.edit')}</button>
+                                                                                                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); deleteAnotacao(a.id, p.id) }}>{t('clientDetail.delete')}</button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            {a.conteudo && <div className="anotacao-card-body">{a.conteudo}</div>}
+                                                                                            <div className="anotacao-card-date">
+                                                                                                {a.created_at ? new Date(a.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                                                                            </div>
+                                                                                        </>
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             )}
+                                                        </div>
 
-                                                            {(anotacoes[p.id] || []).length === 0 && !addingAnotacao ? (
-                                                                <div className="anotacoes-empty">{t('clientDetail.noNotes')}</div>
-                                                            ) : (
-                                                                <div className="anotacoes-list">
-                                                                    {(anotacoes[p.id] || []).map((a) => (
-                                                                        <div key={a.id} className="anotacao-card">
-                                                                            {editingAnotacao === a.id ? (
-                                                                                <div className="anotacao-form">
-                                                                                    <input
-                                                                                        className="form-input"
-                                                                                        value={editAnotacaoForm.titulo}
-                                                                                        onChange={(e) => setEditAnotacaoForm({ ...editAnotacaoForm, titulo: e.target.value })}
-                                                                                        onClick={(e) => e.stopPropagation()}
-                                                                                    />
-                                                                                    <textarea
-                                                                                        className="form-textarea"
-                                                                                        value={editAnotacaoForm.conteudo}
-                                                                                        onChange={(e) => setEditAnotacaoForm({ ...editAnotacaoForm, conteudo: e.target.value })}
-                                                                                        rows={3}
-                                                                                        onClick={(e) => e.stopPropagation()}
-                                                                                    />
-                                                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                                                                        <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setEditingAnotacao(null) }}>{t('clientDetail.cancel')}</button>
-                                                                                        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); updateAnotacao(a.id, p.id) }} disabled={savingA}>
-                                                                                            {savingA ? t('common.saving') : t('common.save')}
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <div className="anotacao-card-header">
-                                                                                        <strong>{a.titulo}</strong>
+                                                        <div className="anotacoes-panel" style={{ marginTop: 24, borderTop: 'none', background: '#FAFAFA' }}>
+                                                            <div className="anotacoes-header" onClick={() => setShowAcessosList(!showAcessosList)} style={{ cursor: 'pointer' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ transition: 'transform 0.2s', transform: showAcessosList ? 'rotate(90deg)' : 'rotate(0deg)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                                    <span className="anotacoes-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4v-3.586l8.172-8.172a6 6 0 115.828-8.172z" /></svg>
+                                                                        {t('clientDetail.accesses')}
+                                                                    </span>
+                                                                </div>
+                                                                <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openCreateAcesso(p.id); setShowAcessosList(true); }}>
+                                                                    + {t('clientDetail.newAccess')}
+                                                                </button>
+                                                            </div>
+
+                                                            {showAcessosList && (
+                                                                <div style={{ paddingTop: 16 }}>
+                                                                    {(acessos[p.id] || []).length === 0 ? (
+                                                                        <div className="anotacoes-empty">{t('clientDetail.noAccesses')}</div>
+                                                                    ) : (
+                                                                        <div className="anotacoes-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                                                                            {(acessos[p.id] || []).map((a) => (
+                                                                                <div key={a.id} className="anotacao-card" style={{ padding: 16 }}>
+                                                                                    <div className="anotacao-card-header" style={{ marginBottom: 12 }}>
+                                                                                        <strong>{a.nome}</strong>
                                                                                         <div className="anotacao-actions">
-                                                                                            <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setEditingAnotacao(a.id); setEditAnotacaoForm({ titulo: a.titulo, conteudo: a.conteudo || '' }) }}>{t('clientDetail.edit')}</button>
-                                                                                            <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); deleteAnotacao(a.id, p.id) }}>{t('clientDetail.delete')}</button>
+                                                                                            <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openEditAcesso(a, p.id) }}>{t('clientDetail.edit')}</button>
+                                                                                            <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); deleteAcesso(a.id, p.id) }}>{t('clientDetail.delete')}</button>
                                                                                         </div>
                                                                                     </div>
-                                                                                    {a.conteudo && <div className="anotacao-card-body">{a.conteudo}</div>}
-                                                                                    <div className="anotacao-card-date">
-                                                                                        {a.created_at ? new Date(a.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                                                                    <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                                                        {a.url && (
+                                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                                                <span style={{ color: 'var(--gray-500)', width: 60 }}>URL:</span>
+                                                                                                <a href={a.url.startsWith('http') ? a.url : `https://${a.url}`} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{a.url}</a>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {a.usuario && (
+                                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                                                <span style={{ color: 'var(--gray-500)', width: 60 }}>User:</span>
+                                                                                                <strong>{a.usuario}</strong>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {a.senha && (
+                                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                                                <span style={{ color: 'var(--gray-500)', width: 60 }}>Senha:</span>
+                                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                                                    <span style={{ fontFamily: 'monospace', background: 'var(--gray-100)', padding: '2px 6px', borderRadius: 4, letterSpacing: showPasswordMap[a.id] ? 'normal' : 2 }}>
+                                                                                                        {showPasswordMap[a.id] ? a.senha : '••••••••'}
+                                                                                                    </span>
+                                                                                                    <button
+                                                                                                        onClick={(e) => { e.stopPropagation(); togglePasswordVisibility(a.id) }}
+                                                                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-500)', padding: 0, display: 'flex' }}
+                                                                                                    >
+                                                                                                        {showPasswordMap[a.id] ? (
+                                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                                                                                        ) : (
+                                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                                                                                        )}
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
-                                                                                </>
-                                                                            )}
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
-                                                                    ))}
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -542,10 +704,11 @@ export default function ClienteDetalhe() {
                         </table>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Tarefas */}
-            <div className="section-card animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            < div className="section-card animate-fade-in-up" style={{ animationDelay: '0.2s' }
+            }>
                 <div className="section-card-header">
                     <h3>{t('clientDetail.tasks')}</h3>
                     <button className="btn btn-primary btn-sm" onClick={openCreateTarefa}>
@@ -602,10 +765,10 @@ export default function ClienteDetalhe() {
                         </table>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Projeto Modal */}
-            <Modal
+            < Modal
                 isOpen={projetoModal}
                 onClose={() => setProjetoModal(false)}
                 title={editingProjeto ? t('clientDetail.editProject') : t('clientDetail.newProject')}
@@ -676,29 +839,31 @@ export default function ClienteDetalhe() {
                 </div>
 
                 {/* Entrega — só se 50/50 */}
-                {projetoForm.modelo_pagamento === '50/50' && (
-                    <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>{t('clientDetail.delivery50')}</div>
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label>{t('clientDetail.value')}</label>
-                                <div className="form-input" style={{ background: 'var(--gray-100)', color: 'var(--gray-600)', cursor: 'default' }}>
-                                    {projetoForm.valor_total ? formatCurrency(parseFloat(projetoForm.valor_total) / 2) : formatCurrency(0)}
+                {
+                    projetoForm.modelo_pagamento === '50/50' && (
+                        <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>{t('clientDetail.delivery50')}</div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>{t('clientDetail.value')}</label>
+                                    <div className="form-input" style={{ background: 'var(--gray-100)', color: 'var(--gray-600)', cursor: 'default' }}>
+                                        {projetoForm.valor_total ? formatCurrency(parseFloat(projetoForm.valor_total) / 2) : formatCurrency(0)}
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('clientDetail.paymentStatus')}</label>
+                                    <select className="form-select" value={projetoForm.status_entrega} onChange={(e) => setProjetoForm({ ...projetoForm, status_entrega: e.target.value as 'Pendente' | 'Pago' })}>
+                                        {statusPgtoOpts.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('clientDetail.paymentDate')}</label>
+                                    <input className="form-input" type="date" value={projetoForm.data_entrega} onChange={(e) => setProjetoForm({ ...projetoForm, data_entrega: e.target.value })} />
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label>{t('clientDetail.paymentStatus')}</label>
-                                <select className="form-select" value={projetoForm.status_entrega} onChange={(e) => setProjetoForm({ ...projetoForm, status_entrega: e.target.value as 'Pendente' | 'Pago' })}>
-                                    {statusPgtoOpts.map((s) => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label>{t('clientDetail.paymentDate')}</label>
-                                <input className="form-input" type="date" value={projetoForm.data_entrega} onChange={(e) => setProjetoForm({ ...projetoForm, data_entrega: e.target.value })} />
-                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Manutenção / Suporte — sempre visível, opcional */}
                 <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0', paddingTop: 12 }}>
@@ -728,10 +893,10 @@ export default function ClienteDetalhe() {
                         <input className="form-input" type="date" value={projetoForm.data_conclusao} onChange={(e) => setProjetoForm({ ...projetoForm, data_conclusao: e.target.value })} />
                     </div>
                 </div>
-            </Modal>
+            </Modal >
 
             {/* Tarefa Modal */}
-            <Modal
+            < Modal
                 isOpen={tarefaModal}
                 onClose={() => setTarefaModal(false)}
                 title={editingTarefa ? t('clientDetail.editTask') : t('clientDetail.newTaskTitle')}
@@ -779,7 +944,61 @@ export default function ClienteDetalhe() {
                         </select>
                     </div>
                 </div>
-            </Modal>
-        </div>
+            </Modal >
+
+            {/* Acesso Modal */}
+            < Modal
+                isOpen={acessoModal}
+                onClose={() => setAcessoModal(false)}
+                title={editingAcesso ? t('clientDetail.edit') + ' ' + t('clientDetail.accesses').toLowerCase() : t('clientDetail.newAccess')}
+                footer={
+                    <>
+                        <button className="btn btn-secondary" onClick={() => setAcessoModal(false)}>{t('common.cancel')}</button>
+                        <button className="btn btn-primary" onClick={saveAcesso} disabled={savingAc}>
+                            {savingAc ? t('common.saving') : t('common.save')}
+                        </button>
+                    </>
+                }
+            >
+                <div className="form-group">
+                    <label>{t('clientDetail.accessName')} *</label>
+                    <input className="form-input" value={acessoForm.nome} onChange={(e) => setAcessoForm({ ...acessoForm, nome: e.target.value })} placeholder="Ex: Hospedagem, Painel Admin..." />
+                </div>
+                <div className="form-group">
+                    <label>{t('clientDetail.accessUrl')}</label>
+                    <input className="form-input" value={acessoForm.url} onChange={(e) => setAcessoForm({ ...acessoForm, url: e.target.value })} placeholder="https://" />
+                </div>
+                <div className="form-row">
+                    <div className="form-group">
+                        <label>{t('clientDetail.accessUser')}</label>
+                        <input className="form-input" value={acessoForm.usuario} onChange={(e) => setAcessoForm({ ...acessoForm, usuario: e.target.value })} placeholder="Email ou username" />
+                    </div>
+                    <div className="form-group">
+                        <label>{t('clientDetail.accessPassword')}</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                className="form-input"
+                                type={showPasswordMap['form'] ? 'text' : 'password'}
+                                value={acessoForm.senha}
+                                onChange={(e) => setAcessoForm({ ...acessoForm, senha: e.target.value })}
+                                placeholder="••••••••"
+                                style={{ paddingRight: 40 }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPasswordMap(prev => ({ ...prev, form: !prev.form }))}
+                                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-500)', display: 'flex' }}
+                            >
+                                {showPasswordMap['form'] ? (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                ) : (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal >
+        </div >
     )
 }

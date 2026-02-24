@@ -133,6 +133,20 @@ const translations: Record<Locale, Record<string, string>> = {
         'clientDetail.delivery50': 'ENTREGA (50%)',
         'clientDetail.monthlySuffix': '/mês',
 
+        // Acessos
+        'clientDetail.accesses': 'Acessos',
+        'clientDetail.newAccess': 'Novo Acesso',
+        'clientDetail.accessName': 'Nome do acesso',
+        'clientDetail.accessUrl': 'Link da plataforma',
+        'clientDetail.accessUser': 'Email ou user',
+        'clientDetail.accessPassword': 'Senha',
+        'clientDetail.noAccesses': 'Nenhum acesso cadastrado',
+        'clientDetail.accessCreated': 'Acesso criado',
+        'clientDetail.accessUpdated': 'Acesso atualizado',
+        'clientDetail.accessDeleted': 'Acesso excluído',
+        'clientDetail.confirmDeleteAccess': 'Excluir acesso?',
+        'clientDetail.nameRequired': 'Nome é obrigatório',
+
         // ===== Tarefas =====
         'tasks.title': 'Tarefas',
         'tasks.subtitle': 'Gerencie e acompanhe suas tarefas',
@@ -387,6 +401,20 @@ const translations: Record<Locale, Record<string, string>> = {
         'clientDetail.fullPayment': 'FULL PAYMENT',
         'clientDetail.delivery50': 'DELIVERY (50%)',
         'clientDetail.monthlySuffix': '/mo',
+
+        // Accesses
+        'clientDetail.accesses': 'Accesses',
+        'clientDetail.newAccess': 'New Access',
+        'clientDetail.accessName': 'Access name',
+        'clientDetail.accessUrl': 'Platform link',
+        'clientDetail.accessUser': 'Email or user',
+        'clientDetail.accessPassword': 'Password',
+        'clientDetail.noAccesses': 'No accesses registered',
+        'clientDetail.accessCreated': 'Access created',
+        'clientDetail.accessUpdated': 'Access updated',
+        'clientDetail.accessDeleted': 'Access deleted',
+        'clientDetail.confirmDeleteAccess': 'Delete access?',
+        'clientDetail.nameRequired': 'Name is required',
 
         // ===== Tarefas =====
         'tasks.title': 'Tasks',
