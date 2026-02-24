@@ -18,6 +18,7 @@ const MeuPerfil = lazy(() => import('./pages/MeuPerfil'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsuarios = lazy(() => import('./pages/AdminUsuarios'))
 const AdminRelatorios = lazy(() => import('./pages/AdminRelatorios'))
+const AdminAtualizacoes = lazy(() => import('./pages/AdminAtualizacoes'))
 
 function LoadingFallback() {
   return (
@@ -68,6 +69,7 @@ export default function App() {
                   <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
                   <Route path="/admin/usuarios" element={<AdminGuard><AdminUsuarios /></AdminGuard>} />
                   <Route path="/admin/relatorios" element={<AdminGuard><AdminRelatorios /></AdminGuard>} />
+                  <Route path="/admin/atualizacoes" element={<AdminGuard><AdminAtualizacoes /></AdminGuard>} />
                 </Route>
               </Routes>
             </Suspense>

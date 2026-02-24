@@ -11,6 +11,7 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.adminDashboard': 'Dashboard Global',
         'sidebar.adminUsers': 'Usuários',
         'sidebar.adminReports': 'Relatórios',
+        'sidebar.adminUpdates': 'Atualizações',
         'sidebar.logout': 'Sair',
 
         // ===== Dashboard =====
@@ -230,6 +231,20 @@ const translations: Record<Locale, Record<string, string>> = {
         'admin.users.subtitle': 'Administração de acessos',
         'admin.reports.title': 'Relatórios',
         'admin.reports.subtitle': 'Dados consolidados do sistema',
+        'admin.updates.title': 'Atualizações do Sistema',
+        'admin.updates.subtitle': 'Registro de novidades e correções',
+        'admin.updates.new': 'Novo Registro',
+        'admin.updates.copyText': 'Copiar Resumo',
+        'admin.updates.type': 'Tipo',
+        'admin.updates.date': 'Data',
+        'admin.updates.desc': 'Descrição',
+        'admin.updates.copied': 'Resumo copiado para a área de transferência!',
+        'admin.updates.placeholderTitle': 'Título da atualização',
+        'admin.updates.placeholderDesc': 'Descreva a novidade ou correção...',
+        'admin.updates.typeNew': 'Novo',
+        'admin.updates.typeImprovement': 'Melhoria',
+        'admin.updates.typeFix': 'Correção',
+        'admin.updates.typeNotice': 'Aviso',
 
         // ===== Login =====
         'login.title': 'Bem-vindo ao Nexium',
@@ -280,6 +295,7 @@ const translations: Record<Locale, Record<string, string>> = {
         'sidebar.adminDashboard': 'Global Dashboard',
         'sidebar.adminUsers': 'Users',
         'sidebar.adminReports': 'Reports',
+        'sidebar.adminUpdates': 'Updates',
         'sidebar.logout': 'Sign Out',
 
         // ===== Dashboard =====
@@ -499,6 +515,20 @@ const translations: Record<Locale, Record<string, string>> = {
         'admin.users.subtitle': 'Access administration',
         'admin.reports.title': 'Reports',
         'admin.reports.subtitle': 'Consolidated system data',
+        'admin.updates.title': 'System Updates',
+        'admin.updates.subtitle': 'Changelog of novelties and fixes',
+        'admin.updates.new': 'New Record',
+        'admin.updates.copyText': 'Copy Summary',
+        'admin.updates.type': 'Type',
+        'admin.updates.date': 'Date',
+        'admin.updates.desc': 'Description',
+        'admin.updates.copied': 'Summary copied to clipboard!',
+        'admin.updates.placeholderTitle': 'Update title',
+        'admin.updates.placeholderDesc': 'Describe the feature or fix...',
+        'admin.updates.typeNew': 'New',
+        'admin.updates.typeImprovement': 'Improvement',
+        'admin.updates.typeFix': 'Fix',
+        'admin.updates.typeNotice': 'Notice',
 
         // ===== Login =====
         'login.title': 'Welcome to Nexium',

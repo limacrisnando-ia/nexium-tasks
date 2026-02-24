@@ -109,3 +109,13 @@ export interface TarefasPendentesCliente {
     tarefas_em_andamento: number
     tarefas_atrasadas: number
 }
+
+export interface SistemaAtualizacao {
+    id: string
+    tipo: 'Novo' | 'Melhoria' | 'Correção' | 'Aviso'
+    titulo: string
+    descricao: string
+    data: string
+    created_at: string | null
+    updated_at: string | null
+}
