@@ -168,53 +168,64 @@ export default function AdminAtualizacoes() {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
                     {atualizacoes.map(item => (
-                        <div key={item.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{
+                        <div key={item.id} className="foco-section animate-fade-in" style={{ marginBottom: 0 }}>
+                            <div className="foco-section-inner" style={{ alignItems: 'flex-start' }}>
+                                <div className="foco-section-left" style={{ flex: 1, alignItems: 'flex-start' }}>
+                                    <div style={{
                                         backgroundColor: `${getTypeColor(item.tipo)}15`,
                                         color: getTypeColor(item.tipo),
                                         padding: '4px 8px',
-                                        borderRadius: '4px',
+                                        borderRadius: '6px',
                                         fontSize: '11px',
                                         fontWeight: 600,
                                         textTransform: 'uppercase',
-                                        letterSpacing: '0.05em'
+                                        letterSpacing: '0.05em',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        height: 'fit-content',
+                                        marginTop: '2px'
                                     }}>
                                         {item.tipo}
-                                    </span>
-                                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{item.titulo}</h3>
+                                    </div>
+                                    <div style={{ marginLeft: '16px' }}>
+                                        <div className="foco-section-title" style={{ fontSize: '15px' }}>
+                                            {item.titulo}
+                                        </div>
+                                        <div className="foco-section-desc" style={{ marginTop: '6px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                                            {item.descricao}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                <div className="foco-section-right" style={{ flexDirection: 'row', gap: '24px', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                                         {new Date(item.data).toLocaleDateString()}
                                     </span>
-                                    <button
-                                        className="btn btn-ghost btn-sm"
-                                        onClick={() => handleCopy(item)}
-                                        title={t('admin.updates.copyText')}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                        </svg>
-                                        <span style={{ fontSize: '12px' }}>{t('admin.updates.copyText')}</span>
-                                    </button>
-                                    <button className="icon-btn" onClick={() => openModal(item)} title={t('common.edit')}>
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                    </button>
-                                    <button className="icon-btn" onClick={() => handleDelete(item.id)} title={t('common.delete')} style={{ color: 'var(--color-danger)' }}>
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <button
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => handleCopy(item)}
+                                            title={t('admin.updates.copyText')}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                            <span style={{ fontSize: '12px' }}>{t('admin.updates.copyText')}</span>
+                                        </button>
+                                        <button className="icon-btn" onClick={() => openModal(item)} title={t('common.edit')}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </button>
+                                        <button className="icon-btn" onClick={() => handleDelete(item.id)} title={t('common.delete')} style={{ color: 'var(--color-danger)' }}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                                {item.descricao}
-                            </p>
                         </div>
                     ))}
                 </div>
