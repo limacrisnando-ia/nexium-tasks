@@ -19,6 +19,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsuarios = lazy(() => import('./pages/AdminUsuarios'))
 const AdminRelatorios = lazy(() => import('./pages/AdminRelatorios'))
 const AdminAtualizacoes = lazy(() => import('./pages/AdminAtualizacoes'))
+const Financeiro = lazy(() => import('./pages/Financeiro'))
 
 function LoadingFallback() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
                   <Route path="/clientes/:id" element={<ClienteDetalhe />} />
                   <Route path="/tarefas" element={<Tarefas />} />
                   <Route path="/calendario" element={<Calendario />} />
+                  <Route path="/financeiro" element={<Financeiro />} />
                   <Route path="/perfil" element={<MeuPerfil />} />
                   {/* Admin routes */}
                   <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />

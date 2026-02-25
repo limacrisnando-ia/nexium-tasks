@@ -119,3 +119,17 @@ export interface SistemaAtualizacao {
     created_at: string | null
     updated_at: string | null
 }
+
+export interface Gasto {
+    id: string
+    descricao: string
+    valor: number
+    tipo: 'Único' | 'Recorrente'
+    categoria: string
+    cobranca: string
+    data_gasto: string
+    data_fim: string | null
+    status: 'Ativo' | 'Inativo'
+    created_at: string | null
+}
+

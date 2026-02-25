@@ -104,6 +104,12 @@ export default function Layout() {
                         </svg>
                         <motion.span animate={{ opacity: isHovered ? 1 : 0 }} transition={{ duration: 0.2 }}>{t('sidebar.calendar')}</motion.span>
                     </NavLink>
+                    <NavLink to="/financeiro" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <motion.span animate={{ opacity: isHovered ? 1 : 0 }} transition={{ duration: 0.2 }}>{t('admin.finance.title')}</motion.span>
+                    </NavLink>
 
                     {/* Admin Section */}
                     {isSuperAdmin && (
@@ -214,6 +220,12 @@ export default function Layout() {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 {t('sidebar.calendar')}
+                            </NavLink>
+                            <NavLink to="/financeiro" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {t('admin.finance.title')}
                             </NavLink>
 
                             {/* Admin Section */}
