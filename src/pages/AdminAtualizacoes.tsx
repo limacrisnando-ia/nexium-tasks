@@ -184,11 +184,13 @@ export default function AdminAtualizacoes() {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         height: 'fit-content',
-                                        marginTop: '2px'
+                                        marginTop: '2px',
+                                        width: '90px',
+                                        flexShrink: 0
                                     }}>
                                         {item.tipo}
                                     </div>
-                                    <div style={{ marginLeft: '16px' }}>
+                                    <div style={{ marginLeft: '16px', flex: 1 }}>
                                         <div className="foco-section-title" style={{ fontSize: '15px' }}>
                                             {item.titulo}
                                         </div>
