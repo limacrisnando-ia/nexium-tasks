@@ -13,7 +13,7 @@ export interface Projeto {
     id: string
     nome_projeto: string
     cliente_id: string | null
-    tipo: 'Site' | 'Automação'
+    tipo: 'Site' | 'Automação' | 'Design'
     descricao: string | null
     valor_total: number | null
     modelo_pagamento: 'Integral' | '50/50'

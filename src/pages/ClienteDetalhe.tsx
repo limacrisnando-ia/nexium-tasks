@@ -7,7 +7,7 @@ import { showToast } from '../components/Toast'
 import { StatusProgressBar } from '../components/StatusProgressBar'
 import { useLanguage } from '../contexts/LanguageContext'
 
-const tipoOpts = ['Site', 'Automação'] as const
+const tipoOpts = ['Site', 'Automação', 'Design', 'VideoMaker'] as const
 const modeloPgtoOpts = ['50/50', 'Integral'] as const
 const statusPgtoOpts = ['Pendente', 'Pago'] as const
 const statusTarefaOpts = ['A Fazer', 'Em Andamento', 'Concluída'] as const
